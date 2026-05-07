@@ -1,0 +1,1995 @@
+{% extends "base.html" %}
+{% block title %}Settings – Daily Helper{% endblock %}
+
+{% block sticky_nav %}
+<style>
+  .settings-subnav {
+    position: sticky;
+    top: 56px;
+    z-index: 99;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 0.15rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.5rem 0.75rem;
+  }
+  .settings-subnav::-webkit-scrollbar { display: none; }
+  .settings-subnav a {
+    white-space: nowrap;
+    padding: 0.3rem 0.7rem;
+    border-radius: 4px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+  .settings-subnav a:hover { background: var(--bg-sidebar); color: var(--text); }
+  .settings-subnav a.active { background: var(--accent); color: #fff; }
+</style>
+<nav class="settings-subnav" aria-label="Settings sections">
+  <a href="#appearance">{{ t("settings.section.appearance") }}</a>
+  <a href="#repos">{{ t("settings.section.repos") }}</a>
+  <a href="#git-identity">{{ t("settings.section.git_identity") }}</a>
+  <a href="#modules">{{ t("settings.section.modules") }}</a>
+  <a href="#module-repos">{{ t("settings.section.module_repos") }}</a>
+  <a href="#templates">{{ t("settings.section.templates") }}</a>
+  <a href="#rss">{{ t("settings.section.rss") }}</a>
+  <a href="#vacation">{{ t("settings.section.vacation") }}</a>
+  <a href="#ics-profiles">{{ t("settings.section.ics_profiles") }}</a>
+  <a href="#appointment-ics-profiles">{{ t("settings.section.appt_ics") }}</a>
+  <a href="#holiday-ics-profiles">{{ t("settings.section.holiday_ics") }}</a>
+  <a href="#notes">{{ t("settings.section.notes") }}</a>
+  <a href="#sprints">{{ t("settings.section.sprints") }}</a>
+  <a href="#link-sections">{{ t("settings.section.link_sections") }}</a>
+  <a href="#tls">{{ t("settings.section.tls") }}</a>
+  <a href="#system">{{ t("settings.section.system") }}</a>
+  <a href="#data">{{ t("settings.section.data") }}</a>
+</nav>
+<script>
+(function() {
+  var sections = ['appearance','repos','git-identity','modules','module-repos','templates','rss','vacation','ics-profiles','appointment-ics-profiles','holiday-ics-profiles','notes','sprints','link-sections','tls','system','data'];
+  var navLinks = {};
+  sections.forEach(function(id) {
+    var a = document.querySelector('.settings-subnav a[href="#' + id + '"]');
+    if (a) navLinks[id] = a;
+  });
+
+  function setActive(id) {
+    Object.values(navLinks).forEach(function(a) { a.classList.remove('active'); });
+    if (navLinks[id]) {
+      navLinks[id].classList.add('active');
+      // Scroll nav link into view horizontally
+      navLinks[id].scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+  }
+
+  // Track ALL currently intersecting sections so rapid callbacks don't overwrite each other
+  var intersecting = new Set();
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(e) {
+      if (e.isIntersecting) intersecting.add(e.target.id);
+      else intersecting.delete(e.target.id);
+    });
+    // Pick the topmost section in page order that is currently visible
+    var top = sections.find(function(id) { return intersecting.has(id); });
+    if (top) setActive(top);
+  }, { rootMargin: '-56px 0px -30% 0px', threshold: 0 });
+
+  document.addEventListener('DOMContentLoaded', function() {
+    sections.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) observer.observe(el);
+    });
+    // Set initial active from URL hash
+    var hash = location.hash.slice(1);
+    if (hash && navLinks[hash]) setActive(hash);
+    else if (sections[0]) setActive(sections[0]);
+  });
+  // Expose for E2E testing
+  window.__settingsSetActive = setActive;
+})();
+</script>
+{% endblock %}
+
+{% macro editor_widget(name, value='', placeholder='Content in Markdown...') %}
+<div class="editor-container">
+  <div class="editor-tabs">
+    <button type="button" class="tab-btn active" onclick="switchTab('edit', this)">{{ t("tab.edit") }}</button>
+    <button type="button" class="tab-btn" onclick="switchTab('preview', this)">{{ t("tab.preview") }}</button>
+  </div>
+  <div class="toolbar">
+    <div class="toolbar-group">
+      <button type="button" class="tb-btn" onclick="insert('# ', '', this)" title="Heading 1">H1</button>
+      <button type="button" class="tb-btn" onclick="insert('## ', '', this)" title="Heading 2">H2</button>
+      <button type="button" class="tb-btn" onclick="insert('### ', '', this)" title="Heading 3">H3</button>
+    </div>
+    <div class="toolbar-sep"></div>
+    <div class="toolbar-group">
+      <button type="button" class="tb-btn tb-bold" onclick="wrap('**', '**', this)" title="Bold">B</button>
+      <button type="button" class="tb-btn tb-italic" onclick="wrap('*', '*', this)" title="Italic">I</button>
+      <button type="button" class="tb-btn tb-strike" onclick="wrap('~~', '~~', this)" title="Strikethrough">S</button>
+    </div>
+    <div class="toolbar-sep"></div>
+    <div class="toolbar-group">
+      <button type="button" class="tb-btn" onclick="wrap('`', '`', this)" title="Inline Code">`c`</button>
+      <button type="button" class="tb-btn" onclick="insertCodeBlock(this)" title="Code Block">{ }</button>
+    </div>
+    <div class="toolbar-sep"></div>
+    <div class="toolbar-group">
+      <button type="button" class="tb-btn" onclick="insertLine('- ', this)" title="List">• —</button>
+      <button type="button" class="tb-btn" onclick="insertLine('1. ', this)" title="Numbered list">1. —</button>
+      <button type="button" class="tb-btn" onclick="insertLine('- [ ] ', this)" title="Checkbox list">☐ —</button>
+    </div>
+    <div class="toolbar-sep"></div>
+    <div class="toolbar-group">
+      <button type="button" class="tb-btn" onclick="insertLine('> ', this)" title="Blockquote">"</button>
+      <button type="button" class="tb-btn" onclick="insertBlock('\n---\n', this)" title="Horizontal rule">—</button>
+      <button type="button" class="tb-btn" onclick="insertTable(this)" title="Table">⊞</button>
+      <button type="button" class="tb-btn" onclick="insertLink(this)" title="Link"><i data-lucide="link" class="icon-xs"></i></button>
+    </div>
+  </div>
+  <textarea name="{{ name }}" class="form-control editor"
+            oninput="schedulePreview(this)"
+            placeholder="{{ placeholder }}">{{ value }}</textarea>
+  <div class="preview-pane" style="display:none"></div>
+</div>
+{% endmacro %}
+
+{% block content %}
+<style>
+  .settings-group { scroll-margin-top: 100px; }
+</style>
+
+<div class="form-section">
+  <h1>{{ t("settings.title") }}</h1>
+
+  {% if saved %}
+  <div class="alert alert-success">{{ t("settings.saved") }}</div>
+  {% endif %}
+  {% if error %}
+  <div class="alert alert-error">{{ error }}</div>
+  {% endif %}
+
+  <!-- ── Appearance ── -->
+  <fieldset class="settings-group" id="appearance">
+    <legend>{{ t("settings.section.appearance") }}</legend>
+    <form action="/settings/appearance" method="post" id="appearance-form">
+      <div class="form-group">
+        <label class="form-label">{{ t("settings.theme") }}</label>
+        <div style="display:flex; gap:1.5rem; flex-wrap:wrap; margin-top:0.4rem">
+          <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer">
+            <input type="radio" name="theme_mode" value="auto" {% if cfg.theme_mode == 'auto' or not cfg.theme_mode %}checked{% endif %}>
+            <i data-lucide="monitor" class="icon-xs"></i> {{ t("settings.theme.auto") }}
+          </label>
+          <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer">
+            <input type="radio" name="theme_mode" value="dark" {% if cfg.theme_mode == 'dark' %}checked{% endif %}>
+            <i data-lucide="moon" class="icon-xs"></i> {{ t("settings.theme.dark") }}
+          </label>
+          <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer">
+            <input type="radio" name="theme_mode" value="light" {% if cfg.theme_mode == 'light' %}checked{% endif %}>
+            <i data-lucide="sun" class="icon-xs"></i> {{ t("settings.theme.light") }}
+          </label>
+        </div>
+        <p class="field-hint" style="margin-top:0.5rem; font-size:0.82rem; color:var(--text-muted)">{{ t("settings.hint.appearance_theme") }}</p>
+      </div>
+      <div class="form-group" style="margin-top:1rem">
+        <label class="form-label">{{ t("settings.language") }}</label>
+        <div style="display:flex; gap:1.5rem; flex-wrap:wrap; margin-top:0.4rem">
+          <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer">
+            <input type="radio" name="language" value="en" {% if cfg.get('language','en') == 'en' %}checked{% endif %}>
+            {{ t("settings.language.en") }}
+          </label>
+          <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer">
+            <input type="radio" name="language" value="de" {% if cfg.get('language','en') == 'de' %}checked{% endif %}>
+            {{ t("settings.language.de") }}
+          </label>
+        </div>
+        <p class="field-hint" style="margin-top:0.5rem; font-size:0.82rem; color:var(--text-muted)">{{ t("settings.hint.appearance_language") }}</p>
+      </div>
+      <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+    </form>
+    <script>
+    document.getElementById('appearance-form').addEventListener('submit', function() {
+      var mode = this.querySelector('[name=theme_mode]:checked').value;
+      if (mode === 'auto') {
+        localStorage.removeItem('theme');
+        var isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+      } else {
+        localStorage.setItem('theme', mode);
+        document.documentElement.setAttribute('data-theme', mode);
+      }
+    });
+    </script>
+  </fieldset>
+
+  <!-- ── Repositories ── -->
+  <fieldset class="settings-group" id="repos">
+    <legend>{{ t("settings.section.repos") }}</legend>
+
+    {% if cfg.repos %}
+    <div class="repo-list">
+      {% for repo in cfg.repos %}
+      <div class="repo-card" id="repo-{{ repo.id }}">
+        <div class="repo-card-header">
+          <span class="repo-name">{{ repo.name }}</span>
+          <span class="repo-platform badge-{{ repo.platform }}">{{ repo.platform }}</span>
+          <span class="repo-auth-mode">{{ repo.auth_mode }}</span>
+          {% if repo.ca_cert %}<span class="repo-feature-badge" title="Custom CA certificate configured"><i data-lucide="shield" class="icon-xs"></i> CA</span>{% endif %}
+          {% if repo.gpg_key %}<span class="repo-feature-badge" title="GPG commit signing configured">✍️ GPG</span>{% endif %}
+          {% if repo.git_user_name or repo.git_user_email %}<span class="repo-feature-badge" title="Custom git identity: {{ repo.git_user_name }} &lt;{{ repo.git_user_email }}&gt;">👤 {{ t("label.identity") }}</span>{% endif %}
+          <div class="repo-perms" id="perms-{{ repo.id }}">
+            {% set perms = repo.permissions if repo.permissions is defined else {} %}
+            {% if perms.read %}
+              <span class="perm-badge perm-read">read</span>
+            {% endif %}
+            {% if perms.write %}
+              <span class="perm-badge perm-write">write</span>
+            {% endif %}
+            {% if not perms.read and not perms.write %}
+              <span class="perm-badge perm-none">{{ t("label.unchecked") }}</span>
+            {% endif %}
+          </div>
+          <div class="repo-card-actions">
+            <button type="button" class="btn btn-secondary btn-sm"
+                    hx-post="/settings/repos/{{ repo.id }}/check"
+                    hx-target="#perms-{{ repo.id }}"
+                    hx-indicator="#spin-{{ repo.id }}">
+              {{ t("action.check_permissions") }}
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm"
+                    hx-post="/settings/repos/{{ repo.id }}/test"
+                    hx-target="#diag-{{ repo.id }}"
+                    hx-swap="innerHTML"
+                    hx-indicator="#spin-{{ repo.id }}">
+              {{ t("action.test_connection") }}
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm"
+                    hx-post="/settings/repos/{{ repo.id }}/sync"
+                    hx-target="#diag-{{ repo.id }}"
+                    hx-swap="innerHTML"
+                    hx-indicator="#spin-{{ repo.id }}">
+              {{ t("action.sync") }}
+            </button>
+            <button type="button" class="btn btn-secondary btn-sm"
+                    hx-get="/api/repos/{{ repo.id }}/health"
+                    hx-target="#diag-{{ repo.id }}"
+                    hx-swap="innerHTML"
+                    hx-indicator="#spin-{{ repo.id }}">
+              {{ t("action.health") }}
+            </button>
+            <span id="spin-{{ repo.id }}" class="htmx-indicator spinner">⏳</span>
+            <span id="toggle-{{ repo.id }}">
+              <button type="button" class="btn btn-secondary btn-sm"
+                      hx-post="/settings/repos/{{ repo.id }}/toggle"
+                      hx-target="#toggle-{{ repo.id }}"
+                      hx-swap="outerHTML">
+                {{ t("action.disable") if repo.get('enabled', true) else t("action.enable") }}
+              </button>
+              {% if not repo.get('enabled', true) %}
+              <span class="perm-badge perm-none" style="margin-left:0.5rem">{{ t("label.disabled") }}</span>
+              {% endif %}
+            </span>
+            <button type="button" class="btn btn-secondary btn-sm"
+                    onclick="toggleRepoEdit('{{ repo.id }}')">{{ t("action.edit") }}</button>
+            <button type="button" class="btn btn-secondary btn-sm"
+                    onclick="toggleRepoCopy('{{ repo.id }}')">{{ t("action.create_copy") }}</button>
+            <form action="/settings/repos/{{ repo.id }}/delete" method="post" style="display:inline"
+                  onsubmit="return confirm('Remove this repo?')">
+              <button type="submit" class="btn btn-danger btn-sm">{{ t("action.remove") }}</button>
+            </form>
+          </div>
+        </div>
+        <div class="repo-url-display">{{ repo.url }}</div>
+        {% if repo.last_checked %}
+        <div class="repo-last-checked">{{ t("label.last_checked") }} {{ repo.last_checked }}</div>
+        {% endif %}
+        <div id="diag-{{ repo.id }}"></div>
+
+        <!-- Copy form (hidden by default) -->
+        <div id="copy-{{ repo.id }}" class="repo-edit-form" style="display:none">
+          <form action="/settings/repos/{{ repo.id }}/copy" method="post" class="entry-form compact-form">
+            <p class="field-hint" style="margin-bottom:0.75rem">{{ t("settings.hint.repo_copy") }}</p>
+            <div class="form-row">
+              <div class="form-group">
+                <label>{{ t("settings.label.new_name") }}</label>
+                <input type="text" name="name" class="form-control"
+                       value="Copy of {{ repo.name }}" required>
+              </div>
+              <div class="form-group">
+                <label>{{ t("settings.label.new_url") }} <span class="hint">{{ t("settings.label.new_url_hint") }}</span></label>
+                <input type="text" name="url" class="form-control"
+                       placeholder="{{ repo.url }}" required>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary"
+                      onclick="toggleRepoCopy('{{ repo.id }}')">{{ t("action.cancel") }}</button>
+              <button type="submit" class="btn btn-primary">{{ t("action.create_copy") }}</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Edit form (hidden by default) -->
+        <div id="edit-{{ repo.id }}" class="repo-edit-form" style="display:none">
+          <form action="/settings/repos/{{ repo.id }}" method="post" class="entry-form compact-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Name</label>
+                <input type="text" name="name" class="form-control" value="{{ repo.name }}" required>
+              </div>
+              <div class="form-group">
+                <label>{{ t("settings.platform") }}</label>
+                <select name="platform" class="form-control">
+                  {% for p in ['gitea', 'github', 'gitlab', 'generic'] %}
+                  <option value="{{ p }}" {% if repo.platform == p %}selected{% endif %}>{{ p }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>URL</label>
+              <input type="text" name="url" class="form-control" value="{{ repo.url }}" required>
+            </div>
+            <div class="form-group">
+              <label>{{ t("settings.auth_method") }}</label>
+              <div class="radio-group">
+                {% for mode, label in [('none','none (public)'), ('ssh','SSH key'), ('pat','PAT / HTTPS'), ('basic','Basic Auth')] %}
+                <label class="radio-option">
+                  <input type="radio" name="auth_mode" value="{{ mode }}"
+                         {% if repo.auth_mode == mode %}checked{% endif %}
+                         onchange="switchAuthPanel('{{ repo.id }}', this.value)">
+                  <span>{{ label }}</span>
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+            <div id="none-panel-{{ repo.id }}" class="auth-panel"
+                 style="{{ 'display:none' if repo.auth_mode != 'none' else '' }}">
+            </div>
+            <div id="ssh-panel-{{ repo.id }}" class="auth-panel"
+                 style="{{ 'display:none' if repo.auth_mode != 'ssh' else '' }}">
+              <div class="form-group">
+                <div class="label-row">
+                  <label>{{ t("settings.label.private_key") }} <span class="hint">{{ t("settings.hint.leave_empty") }}</span></label>
+                  <button type="button" class="btn btn-secondary btn-sm"
+                          onclick="generateKeypairFor('{{ repo.id }}')">{{ t("action.generate_keypair") }}</button>
+                </div>
+                {% if repo.ssh_key %}
+                <p class="field-hint" style="color:var(--accent)">{{ t("settings.hint.ssh_key_stored") }}</p>
+                {% endif %}
+                <textarea name="ssh_key" class="form-control editor monospace" rows="6"
+                          id="ssh-key-{{ repo.id }}"
+                          placeholder="-----BEGIN OPENSSH PRIVATE KEY-----"></textarea>
+                <div id="pubkey-section-{{ repo.id }}" style="display:none" class="form-group">
+                  <label>{{ t("settings.label.public_key") }}</label>
+                  <div class="input-row">
+                    <input type="text" id="pubkey-{{ repo.id }}" class="form-control monospace" readonly>
+                    <button type="button" class="btn btn-secondary btn-sm"
+                            onclick="copyText(document.getElementById('pubkey-{{ repo.id }}').value)">{{ t("action.copy") }}</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="pat-panel-{{ repo.id }}" class="auth-panel"
+                 style="{{ 'display:none' if repo.auth_mode != 'pat' else '' }}">
+              <div class="form-group">
+                <label>Personal Access Token</label>
+                {% if repo.pat %}<p class="field-hint" style="color:var(--accent)">{{ t("settings.hint.pat_stored") }}</p>{% endif %}
+                <input type="password" name="pat" class="form-control"
+                       placeholder="leave empty to keep existing" autocomplete="new-password">
+                <p class="field-hint">Required scopes: <strong>GitLab</strong> → <code>write_repository</code> (git ops) + <code>read_api</code> (Check Permissions) · <strong>GitHub</strong> → <code>repo</code> · <strong>Gitea</strong> → <code>repository</code></p>
+              </div>
+            </div>
+            <div id="basic-panel-{{ repo.id }}" class="auth-panel"
+                 style="{{ 'display:none' if repo.auth_mode != 'basic' else '' }}">
+              <div class="form-group">
+                <label>{{ t("field.username") }}</label>
+                <input type="text" name="basic_user" class="form-control"
+                       value="{{ repo.basic_user }}" autocomplete="username">
+              </div>
+              <div class="form-group">
+                <label>{{ t("field.password") }} <span class="hint">{{ t("settings.hint.leave_empty") }}</span></label>
+                <input type="password" name="basic_password" class="form-control"
+                       placeholder="leave empty to keep existing" autocomplete="new-password">
+                <p class="field-hint">Stored encrypted. Passed via GIT_ASKPASS — never embedded in the URL or process arguments.</p>
+              </div>
+            </div>
+            <!-- CA Certificate -->
+            <div class="form-group">
+              <label>{{ t("settings.label.ca_cert") }} <span class="hint">{{ t("settings.label.ca_cert_hint") }}</span></label>
+              <textarea name="ca_cert" class="form-control editor monospace" rows="4"
+                        placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----">{{ repo.ca_cert }}</textarea>
+              {% if repo.ca_cert %}<p class="field-hint" style="color:var(--accent)">{{ t("settings.hint.ca_cert_stored") }}</p>{% endif %}
+            </div>
+            <!-- Git Identity (per-repo) -->
+            <details class="settings-details">
+              <summary>{{ t("settings.label.git_identity") }} <span class="hint">{{ t("settings.label.git_identity_hint") }}</span></summary>
+              <div class="form-row" style="margin-top:0.5rem">
+                <div class="form-group">
+                  <label>Name</label>
+                  <input type="text" name="git_user_name" class="form-control"
+                         value="{{ repo.git_user_name }}" placeholder="Leave empty to use global">
+                </div>
+                <div class="form-group">
+                  <label>Email</label>
+                  <input type="email" name="git_user_email" class="form-control"
+                         value="{{ repo.git_user_email }}" placeholder="Leave empty to use global">
+                </div>
+              </div>
+            </details>
+            <!-- GPG Signing -->
+            <details class="settings-details">
+              <summary>{{ t("settings.label.gpg_signing") }} <span class="hint">{{ t("settings.label.gpg_signing_hint") }}</span></summary>
+              <div class="form-group" style="margin-top:0.5rem">
+                <label>{{ t("settings.label.private_key") }} <span class="hint">(ASCII-armored, {{ t("settings.hint.leave_empty") }})</span></label>
+                <textarea name="gpg_key" class="form-control editor monospace" rows="6"
+                          placeholder="-----BEGIN PGP PRIVATE KEY BLOCK-----"></textarea>
+              </div>
+              <div class="form-group">
+                <label>{{ t("field.passphrase") }} <span class="hint">{{ t("settings.hint.leave_empty") }}</span></label>
+                <input type="password" name="gpg_passphrase" class="form-control"
+                       placeholder="leave empty to keep existing" autocomplete="new-password">
+                <p class="field-hint">Stored encrypted. Used non-interactively via gpg-agent loopback.</p>
+              </div>
+            </details>
+            <div class="form-group">
+              <label>{{ t("settings.push_retry") }}</label>
+              <input type="number" name="push_retry_count" class="form-control"
+                     value="{{ repo.push_retry_count if repo.push_retry_count is defined else 1 }}"
+                     min="0" max="10" style="width:6rem">
+              <p class="field-hint">{{ t("settings.hint.push_retry") }}</p>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary"
+                      onclick="toggleRepoEdit('{{ repo.id }}')">{{ t("action.cancel") }}</button>
+              <button type="submit" class="btn btn-primary">{{ t("action.save_repo") }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="field-hint">{{ t("settings.empty.repos") }}</p>
+    {% endif %}
+
+    <!-- Add new repo -->
+    <div class="add-repo-section">
+      <button type="button" class="btn btn-secondary" onclick="toggleNewRepo()">
+        {{ t("action.add_repo") }}
+      </button>
+      <div id="new-repo-form" style="display:none">
+        <form action="/settings/repos" method="post" class="entry-form compact-form" style="margin-top:1rem">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Name</label>
+              <input type="text" name="name" class="form-control" placeholder="e.g. Main KB" required>
+            </div>
+            <div class="form-group">
+              <label>{{ t("settings.platform") }}</label>
+              <select name="platform" class="form-control" id="new-platform">
+                <option value="gitea">gitea</option>
+                <option value="github">github</option>
+                <option value="gitlab">gitlab</option>
+                <option value="generic">generic</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Repository URL</label>
+            <input type="text" name="url" class="form-control"
+                   placeholder="ssh://git@gitea.example.com:2222/org/kb-data.git" required>
+          </div>
+          <div class="form-group">
+            <label>{{ t("settings.auth_method") }}</label>
+            <div class="radio-group">
+              <label class="radio-option">
+                <input type="radio" name="auth_mode" value="none" checked
+                       onchange="switchAuthPanel('new', 'none')">
+                <span>none (public)</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="auth_mode" value="ssh"
+                       onchange="switchAuthPanel('new', 'ssh')">
+                <span>SSH key</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="auth_mode" value="pat"
+                       onchange="switchAuthPanel('new', 'pat')">
+                <span>PAT / HTTPS</span>
+              </label>
+              <label class="radio-option">
+                <input type="radio" name="auth_mode" value="basic"
+                       onchange="switchAuthPanel('new', 'basic')">
+                <span>Basic Auth</span>
+              </label>
+            </div>
+          </div>
+          <div id="none-panel-new" class="auth-panel" style="display:block"></div>
+          <div id="ssh-panel-new" class="auth-panel" style="display:none">
+            <div class="form-group">
+              <div class="label-row">
+                <label>{{ t("settings.label.private_key") }} <span class="hint">(PEM, OpenSSH)</span></label>
+                <button type="button" class="btn btn-secondary btn-sm"
+                        onclick="generateKeypairFor('new')">{{ t("action.generate_keypair") }}</button>
+              </div>
+              <textarea name="ssh_key" id="ssh-key-new" class="form-control editor monospace" rows="6"
+                        placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----"></textarea>
+              <div id="pubkey-section-new" style="display:none" class="form-group">
+                <label>{{ t("settings.label.public_key") }}</label>
+                <div class="input-row">
+                  <input type="text" id="pubkey-new" class="form-control monospace" readonly>
+                  <button type="button" class="btn btn-secondary btn-sm"
+                          onclick="copyText(document.getElementById('pubkey-new').value)">{{ t("action.copy") }}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div id="pat-panel-new" class="auth-panel" style="display:none">
+            <div class="form-group">
+              <label>Personal Access Token</label>
+              <input type="password" name="pat" class="form-control" placeholder="glpat-xxxxxxxxxxxxxxxxxxxx" autocomplete="new-password">
+              <p class="field-hint">Required scopes: <strong>GitLab</strong> → <code>write_repository</code> (git ops) + <code>read_api</code> (Check Permissions) · <strong>GitHub</strong> → <code>repo</code> · <strong>Gitea</strong> → <code>repository</code></p>
+            </div>
+          </div>
+          <div id="basic-panel-new" class="auth-panel" style="display:none">
+            <div class="form-group">
+              <label>{{ t("field.username") }}</label>
+              <input type="text" name="basic_user" class="form-control" autocomplete="username">
+            </div>
+            <div class="form-group">
+              <label>{{ t("field.password") }}</label>
+              <input type="password" name="basic_password" class="form-control" autocomplete="new-password">
+            </div>
+          </div>
+          <!-- CA Certificate -->
+          <div class="form-group">
+            <label>{{ t("settings.label.ca_cert") }} <span class="hint">{{ t("settings.label.ca_cert_hint") }}</span></label>
+            <textarea name="ca_cert" class="form-control editor monospace" rows="4"
+                      placeholder="-----BEGIN CERTIFICATE-----&#10;...&#10;-----END CERTIFICATE-----"></textarea>
+          </div>
+          <!-- Git Identity (per-repo) -->
+          <details class="settings-details">
+            <summary>{{ t("settings.label.git_identity") }} <span class="hint">{{ t("settings.label.git_identity_hint") }}</span></summary>
+            <div class="form-row" style="margin-top:0.5rem">
+              <div class="form-group">
+                <label>Name</label>
+                <input type="text" name="git_user_name" class="form-control" placeholder="Leave empty to use global">
+              </div>
+              <div class="form-group">
+                <label>Email</label>
+                <input type="email" name="git_user_email" class="form-control" placeholder="Leave empty to use global">
+              </div>
+            </div>
+          </details>
+          <!-- GPG Signing -->
+          <details class="settings-details">
+            <summary>{{ t("settings.label.gpg_signing") }} <span class="hint">{{ t("settings.label.gpg_signing_hint") }}</span></summary>
+            <div class="form-group" style="margin-top:0.5rem">
+              <label>{{ t("settings.label.private_key") }} <span class="hint">(ASCII-armored PGP private key)</span></label>
+              <textarea name="gpg_key" class="form-control editor monospace" rows="6"
+                        placeholder="-----BEGIN PGP PRIVATE KEY BLOCK-----&#10;...&#10;-----END PGP PRIVATE KEY BLOCK-----"></textarea>
+            </div>
+            <div class="form-group">
+              <label>{{ t("field.passphrase") }}</label>
+              <input type="password" name="gpg_passphrase" class="form-control" autocomplete="new-password">
+              <p class="field-hint">Stored encrypted. Used non-interactively via gpg-agent loopback.</p>
+            </div>
+          </details>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="toggleNewRepo()">{{ t("action.cancel") }}</button>
+            <button type="submit" class="btn btn-primary">{{ t("action.add_repo") }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </fieldset>
+
+  <!-- ── Git Identity (global) ── -->
+  <fieldset class="settings-group" id="git-identity">
+    <legend>{{ t("settings.section.git_identity") }}</legend>
+    <form action="/settings/git-identity" method="post" class="entry-form">
+      <div class="form-group">
+        <label>{{ t("settings.label.git_name_email") }} <span class="hint">{{ t("settings.hint.git_name_email") }}</span></label>
+        <div class="input-row">
+          <input type="text" name="git_user_name" class="form-control"
+                 value="{{ cfg.git_user_name }}" placeholder="Name">
+          <input type="email" name="git_user_email" class="form-control"
+                 value="{{ cfg.git_user_email }}" placeholder="E-Mail">
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+      </div>
+    </form>
+  </fieldset>
+
+  <!-- ── Modules ── -->
+  <fieldset class="settings-group" id="modules">
+    <legend>{{ t("settings.section.modules") }}</legend>
+    <p class="field-hint">{{ t("settings.hint.modules") }}</p>
+    <form action="/settings/modules" method="post" class="entry-form">
+      <div class="form-group" style="display:flex; gap:2rem; flex-wrap:wrap">
+        <label class="radio-option" style="gap:0.75rem">
+          <input type="checkbox" name="appointments" value="on"
+                 {% if (cfg.modules_enabled or {}).get('appointments', true) %}checked{% endif %}
+                 style="accent-color:var(--accent);width:1rem;height:1rem">
+          <span><i data-lucide="calendar-days" class="icon-xs"></i> {{ t("nav.appointments") }}</span>
+        </label>
+        <label class="radio-option" style="gap:0.75rem">
+          <input type="checkbox" name="knowledge" value="on"
+                 {% if (cfg.modules_enabled or {}).get('knowledge', true) %}checked{% endif %}
+                 style="accent-color:var(--accent);width:1rem;height:1rem">
+          <span><i data-lucide="book-open" class="icon-xs"></i> {{ t("nav.knowledge") }}</span>
+        </label>
+        <label class="radio-option" style="gap:0.75rem">
+          <input type="checkbox" name="links" value="on"
+                 {% if (cfg.modules_enabled or {}).get('links', true) %}checked{% endif %}
+                 style="accent-color:var(--accent);width:1rem;height:1rem">
+          <span><i data-lucide="link-2" class="icon-xs"></i> {{ t("nav.links") }}</span>
+        </label>
+        <label class="radio-option" style="gap:0.75rem">
+          <input type="checkbox" name="mail_templates" value="on"
+                 {% if (cfg.modules_enabled or {}).get('mail_templates', true) %}checked{% endif %}
+                 style="accent-color:var(--accent);width:1rem;height:1rem">
+          <span><i data-lucide="mail" class="icon-xs"></i> {{ t("nav.mail_templates") }}</span>
+        </label>
+        <label class="radio-option" style="gap:0.75rem">
+          <input type="checkbox" name="memes" value="on"
+                 {% if (cfg.modules_enabled or {}).get('memes', true) %}checked{% endif %}
+                 style="accent-color:var(--accent);width:1rem;height:1rem">
+          <span><i data-lucide="smile" class="icon-xs"></i> {{ t("nav.memes") }}</span>
+        </label>
+        <label class="radio-option" style="gap:0.75rem">
+          <input type="checkbox" name="motd" value="on"
+                 {% if (cfg.modules_enabled or {}).get('motd', true) %}checked{% endif %}
+                 style="accent-color:var(--accent);width:1rem;height:1rem">
+          <span><i data-lucide="message-square" class="icon-xs"></i> {{ t("nav.motd") }}</span>
+        </label>
+        <label class="radio-option" style="gap:0.75rem">
+          <input type="checkbox" name="notes" value="on"
+                 {% if (cfg.modules_enabled or {}).get('notes', true) %}checked{% endif %}
+                 style="accent-color:var(--accent);width:1rem;height:1rem">
+          <span><i data-lucide="file-text" class="icon-xs"></i> {{ t("nav.notes") }}</span>
+        </label>
+        <label class="radio-option" style="gap:0.75rem">
+          <input type="checkbox" name="potd" value="on"
+                 {% if (cfg.modules_enabled or {}).get('potd', true) %}checked{% endif %}
+                 style="accent-color:var(--accent);width:1rem;height:1rem">
+          <span><i data-lucide="image" class="icon-xs"></i> {{ t("nav.potd") }}</span>
+        </label>
+        <label class="radio-option" style="gap:0.75rem">
+          <input type="checkbox" name="rss" value="on"
+                 {% if (cfg.modules_enabled or {}).get('rss', true) %}checked{% endif %}
+                 style="accent-color:var(--accent);width:1rem;height:1rem">
+          <span><i data-lucide="rss" class="icon-xs"></i> {{ t("nav.rss") }}</span>
+        </label>
+        <label class="radio-option" style="gap:0.75rem">
+          <input type="checkbox" name="runbooks" value="on"
+                 {% if (cfg.modules_enabled or {}).get('runbooks', true) %}checked{% endif %}
+                 style="accent-color:var(--accent);width:1rem;height:1rem">
+          <span><i data-lucide="list-checks" class="icon-xs"></i> {{ t("nav.runbooks") }}</span>
+        </label>
+        <label class="radio-option" style="gap:0.75rem">
+          <input type="checkbox" name="snippets" value="on"
+                 {% if (cfg.modules_enabled or {}).get('snippets', true) %}checked{% endif %}
+                 style="accent-color:var(--accent);width:1rem;height:1rem">
+          <span><i data-lucide="code-2" class="icon-xs"></i> {{ t("nav.snippets") }}</span>
+        </label>
+        <label class="radio-option" style="gap:0.75rem">
+          <input type="checkbox" name="tasks" value="on"
+                 {% if (cfg.modules_enabled or {}).get('tasks', true) %}checked{% endif %}
+                 style="accent-color:var(--accent);width:1rem;height:1rem">
+          <span><i data-lucide="check-square-2" class="icon-xs"></i> {{ t("nav.tasks") }}</span>
+        </label>
+        <label class="radio-option" style="gap:0.75rem">
+          <input type="checkbox" name="ticket_templates" value="on"
+                 {% if (cfg.modules_enabled or {}).get('ticket_templates', true) %}checked{% endif %}
+                 style="accent-color:var(--accent);width:1rem;height:1rem">
+          <span><i data-lucide="ticket" class="icon-xs"></i> {{ t("nav.ticket_templates") }}</span>
+        </label>
+        <label class="radio-option" style="gap:0.75rem">
+          <input type="checkbox" name="vacations" value="on"
+                 {% if (cfg.modules_enabled or {}).get('vacations', true) %}checked{% endif %}
+                 style="accent-color:var(--accent);width:1rem;height:1rem">
+          <span><i data-lucide="palmtree" class="icon-xs"></i> {{ t("nav.vacations") }}</span>
+        </label>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+      </div>
+    </form>
+  </fieldset>
+
+  <!-- ── Module Repositories ── -->
+  <fieldset class="settings-group" id="module-repos">
+    <legend>{{ t("settings.section.module_repos") }}</legend>
+    <p class="field-hint">{{ t("settings.hint.module_repos") }}</p>
+    {% if cfg.repos %}
+    <form action="/settings/module-repos" method="post" class="entry-form">
+      {% for mod_key, mod_label, mod_icon in [('appointments','Appointments','calendar-days'), ('knowledge','Knowledge','book-open'), ('links','Links','link-2'), ('mail_templates','Mail Templates','mail'), ('memes','Memes','smile'), ('motd','Message of the Day','message-square'), ('notes','Notes','file-text'), ('potd','Picture of the Day','image'), ('rss','RSS Reader','rss'), ('runbooks','Runbooks','list-checks'), ('snippets','Snippets','code-2'), ('tasks','Tasks','check-square-2'), ('ticket_templates','Ticket Templates','ticket'), ('vacations','Vacations','palmtree')] %}
+      {% set mr = (cfg.module_repos or {}).get(mod_key, {}) %}
+      {% set assigned = mr.get('repos', []) %}
+      {% set primary = mr.get('primary', '') %}
+      <div class="form-group" style="margin-bottom:1.25rem">
+        <label style="font-weight:600; margin-bottom:0.5rem; display:block"><i data-lucide="{{ mod_icon }}" class="icon-xs"></i> {{ t("nav." ~ mod_key) }}</label>
+        <div style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-bottom:0.5rem">
+          {% for repo in cfg.repos %}
+          <label class="radio-option" style="gap:0.5rem">
+            <input type="checkbox" name="{{ mod_key }}_repos" value="{{ repo.id }}"
+                   {% if repo.id in assigned or not assigned %}checked{% endif %}
+                   style="accent-color:var(--accent);width:1rem;height:1rem"
+                   onchange="updatePrimary('{{ mod_key }}')">
+            <span>{{ repo.name or repo.id }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <div style="display:flex; align-items:center; gap:0.5rem">
+          <label class="field-hint" style="margin:0; white-space:nowrap">{{ t("settings.label.primary_write") }}</label>
+          <select name="{{ mod_key }}_primary" id="primary-{{ mod_key }}" class="form-control" style="max-width:20rem">
+            {% for repo in cfg.repos %}
+            <option value="{{ repo.id }}" {% if repo.id == primary or (not primary and loop.first) %}selected{% endif %}>
+              {{ repo.name or repo.id }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+      {% if not loop.last %}<hr style="border-color:var(--border); margin:0.5rem 0 1rem">{% endif %}
+      {% endfor %}
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+      </div>
+    </form>
+    {% else %}
+    <p class="field-hint">{{ t("settings.empty.module_repos") }}</p>
+    {% endif %}
+  </fieldset>
+
+  <!-- ── Entry Templates ── -->
+  <fieldset class="settings-group" id="templates">
+    <legend>{{ t("settings.section.templates") }}</legend>
+
+    {% if cfg.templates %}
+    <div class="template-list">
+      {% for tpl in cfg.templates %}
+      <div class="template-card" id="tpl-card-{{ tpl.id }}">
+        <div class="template-card-header">
+          <span class="template-name">{{ tpl.name }}</span>
+          <div class="template-card-actions">
+            <button type="button" class="btn btn-secondary btn-sm"
+                    onclick="toggleTplEdit('{{ tpl.id }}')">{{ t("action.edit") }}</button>
+            <form action="/settings/templates/{{ tpl.id }}/delete" method="post" style="display:inline"
+                  onsubmit="return confirm('Delete template {{ tpl.name }}?')">
+              <button type="submit" class="btn btn-danger btn-sm">{{ t("action.delete") }}</button>
+            </form>
+          </div>
+        </div>
+        <div id="tpl-edit-{{ tpl.id }}" style="display:none" class="template-edit-form">
+          <form action="/settings/templates/{{ tpl.id }}" method="post" class="entry-form compact-form" style="margin-top:0.75rem">
+            <div class="form-group">
+              <label>Name</label>
+              <input type="text" name="name" class="form-control" value="{{ tpl.name }}" required>
+            </div>
+            <div class="form-group">
+              <label>{{ t("settings.label.content_markdown") }}</label>
+              {{ editor_widget('content', tpl.content) }}
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary" onclick="toggleTplEdit('{{ tpl.id }}')">{{ t("action.cancel") }}</button>
+              <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="field-hint">{{ t("settings.empty.templates") }}</p>
+    {% endif %}
+
+    <div class="add-repo-section" style="margin-top:0.75rem">
+      <button type="button" class="btn btn-secondary" onclick="toggleNewTemplate()">{{ t("action.add_template") }}</button>
+      <div id="new-template-form" style="display:none; margin-top:1rem">
+        <form action="/settings/templates" method="post" class="entry-form compact-form">
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" name="name" class="form-control" placeholder="e.g. Runbook" required>
+          </div>
+          <div class="form-group">
+            <label>{{ t("settings.label.content_markdown") }}</label>
+            {{ editor_widget('content', '', '## Section\n\nContent here...') }}
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="toggleNewTemplate()">{{ t("action.cancel") }}</button>
+            <button type="submit" class="btn btn-primary">{{ t("action.add_template") }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </fieldset>
+
+  <!-- ── Vacation ── -->
+  <fieldset class="settings-group" id="vacation">
+    <legend>{{ t("settings.section.vacation") }}</legend>
+    <form action="/settings/vacation" method="post" class="entry-form">
+      <div class="form-group">
+        <label>{{ t("settings.holiday_language") }}</label>
+        <div style="display:flex;gap:1.5rem;margin-top:0.4rem">
+          <label class="radio-option" style="gap:0.6rem">
+            <input type="radio" name="holiday_language" value="de"
+                   {% if cfg.get('holiday_language', 'de') == 'de' %}checked{% endif %}
+                   style="accent-color:var(--accent)">
+            <span>{{ t("settings.language.de") }}</span>
+          </label>
+          <label class="radio-option" style="gap:0.6rem">
+            <input type="radio" name="holiday_language" value="en_US"
+                   {% if cfg.get('holiday_language', 'de') == 'en_US' %}checked{% endif %}
+                   style="accent-color:var(--accent)">
+            <span>{{ t("settings.language.en") }}</span>
+          </label>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>{{ t("settings.label.federal_state") }}</label>
+        <select name="vacation_state" class="form-control">
+          {% set states = [
+            ("BB","Brandenburg"),("BE","Berlin"),("BW","Baden-Württemberg"),
+            ("BY","Bayern"),("HB","Bremen"),("HE","Hessen"),("HH","Hamburg"),
+            ("MV","Mecklenburg-Vorpommern"),("NI","Niedersachsen"),("NW","Nordrhein-Westfalen"),
+            ("RP","Rheinland-Pfalz"),("SH","Schleswig-Holstein"),("SL","Saarland"),
+            ("SN","Sachsen"),("ST","Sachsen-Anhalt"),("TH","Thüringen")
+          ] %}
+          {% for code, name in states %}
+          <option value="{{ code }}" {% if cfg.vacation_state == code %}selected{% endif %}>{{ name }} ({{ code }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>{{ t("settings.vacation_days") }}</label>
+          <input type="number" name="vacation_days_per_year" class="form-control"
+                 value="{{ cfg.vacation_days_per_year }}" min="1" max="365" style="max-width:8rem">
+        </div>
+        <div class="form-group">
+          <label>{{ t("settings.vacation_carryover") }} <span class="hint">(added to annual total)</span></label>
+          <input type="number" name="vacation_carryover" class="form-control"
+                 value="{{ cfg.vacation_carryover | default(0) }}" min="-365" max="365" step="0.5" style="max-width:8rem">
+        </div>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
+          <input type="checkbox" name="calendar_show_weekends"
+                 {% if cfg.get('calendar_show_weekends', true) %}checked{% endif %}
+                 style="accent-color:var(--accent)">
+          {{ t("settings.label.show_weekends") }}
+        </label>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+      </div>
+    </form>
+
+    <hr style="margin:1.5rem 0;border:none;border-top:1px solid var(--border)">
+    <h3 style="font-size:1rem;margin:0 0 0.25rem">{{ t("settings.label.vacation_mail_template") }}</h3>
+    <p class="field-hint">Placeholders: <code>&#123;&#123;from&#125;&#125;</code>, <code>&#123;&#123;to&#125;&#125;</code>, <code>&#123;&#123;working_days&#125;&#125;</code></p>
+    <form action="/settings/vacation-mail" method="post" class="entry-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label>{{ t("field.to") }}</label>
+          <input type="text" name="vacation_mail_to" class="form-control"
+                 value="{{ cfg.get('vacation_mail_to', '') }}" placeholder="manager@company.com">
+        </div>
+        <div class="form-group">
+          <label>CC</label>
+          <input type="text" name="vacation_mail_cc" class="form-control"
+                 value="{{ cfg.get('vacation_mail_cc', '') }}" placeholder="hr@company.com">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>{{ t("field.subject") }}</label>
+        <input type="text" name="vacation_mail_subject" class="form-control"
+               value="{{ cfg.get('vacation_mail_subject', '') }}"
+               placeholder="Vacation request &#123;&#123;from&#125;&#125; – &#123;&#123;to&#125;&#125;">
+      </div>
+      <div class="form-group">
+        <label>{{ t("field.body") }}</label>
+        <textarea name="vacation_mail_body" class="form-control" rows="6"
+                  placeholder="...">{{ cfg.get('vacation_mail_body', '') }}</textarea>
+        <small style="color:var(--text-muted);display:block;margin-top:0.25rem">
+          Formatting: <code>[b]bold[/b]</code> &nbsp; <code>[i]italic[/i]</code> &nbsp; <code>[u]underline[/u]</code>
+        </small>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+      </div>
+    </form>
+  </fieldset>
+
+  <!-- ── RSS ── -->
+  <fieldset class="settings-group" id="rss">
+    <legend>{{ t("settings.section.rss") }}</legend>
+    <form action="/settings/rss-home" method="post" class="entry-form">
+      <div class="form-group">
+        <label for="rss_home_limit">{{ t("settings.rss_home_limit") }}</label>
+        <input type="number" id="rss_home_limit" name="rss_home_limit" min="1" max="20"
+               value="{{ cfg.rss_home_limit | default(3) }}"
+               style="width:6rem">
+        <p class="field-hint">{{ t("settings.hint.rss_home_limit") }}</p>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+      </div>
+    </form>
+  </fieldset>
+
+  <!-- ── Vacation ICS Export Profiles ── -->
+  <fieldset class="settings-group" id="ics-profiles">
+    <legend>{{ t("settings.section.ics_profiles") }}</legend>
+    <p class="field-hint">{{ t("settings.hint.ics_profiles") }}</p>
+
+    {% if cfg.ics_profiles %}
+    <div class="template-list" style="margin-bottom:1rem">
+      {% for p in cfg.ics_profiles %}
+      <div class="template-card">
+        <div class="template-card-header">
+          <span class="template-name">{{ p.name }}</span>
+          <span class="hint">
+            {{ p.show_as | upper }}
+            · {{ t("settings.ics.summary_allday") if p.all_day else (p.start_time or "?") ~ "–" ~ (p.end_time or "?") }}
+            {% if p.category %} · {{ p.category }}{% endif %}
+          </span>
+          <div class="template-card-actions">
+            <button type="button" class="btn btn-secondary btn-sm"
+                    onclick="toggleIcsEditForm('{{ p.id }}')">{{ t("action.edit") }}</button>
+            <form action="/settings/ics-profiles/{{ p.id }}/delete" method="post" style="display:inline"
+                  onsubmit="return confirm('Delete profile \'{{ p.name }}\'?')">
+              <button type="submit" class="btn btn-danger btn-sm">{{ t("action.delete") }}</button>
+            </form>
+          </div>
+        </div>
+        <div class="field-hint" style="margin-top:0.25rem">
+          Subject: <code>{{ p.subject }}</code>
+          {% set _req = p.get('recipients_required') or p.get('recipients') or [] %}
+          {% if _req %} · {{ t("settings.ics.summary_required") }} {{ _req | join(", ") }}{% endif %}
+          {% if p.get('recipients_optional') %} · {{ t("settings.ics.summary_optional") }} {{ p.recipients_optional | join(", ") }}{% endif %}
+          {% if p.get('no_online_meeting') %} · {{ t("settings.ics.summary_no_om") }}{% endif %}
+        </div>
+        <div id="ics-edit-{{ p.id }}" style="display:none; margin-top:1rem">
+          <form action="/settings/ics-profiles/{{ p.id }}/edit" method="post" class="entry-form compact-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Name</label>
+                <input type="text" name="name" class="form-control" value="{{ p.name }}" required>
+              </div>
+              <div class="form-group">
+                <label>{{ t("settings.label.show_as") }}</label>
+                <select name="show_as" class="form-control">
+                  <option value="oof" {% if p.show_as == "oof" %}selected{% endif %}>{{ t("settings.ics.oof") }}</option>
+                  <option value="free" {% if p.show_as == "free" %}selected{% endif %}>{{ t("settings.ics.free") }}</option>
+                  <option value="busy" {% if p.show_as == "busy" %}selected{% endif %}>{{ t("settings.ics.busy") }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>{{ t("settings.label.required_recipients") }} <span class="hint">(comma-separated)</span></label>
+                <input type="text" name="recipients_required" class="form-control"
+                       value="{{ (p.get('recipients_required') or p.get('recipients') or []) | join(', ') }}">
+              </div>
+              <div class="form-group">
+                <label>{{ t("settings.label.optional_recipients") }} <span class="hint">(comma-separated)</span></label>
+                <input type="text" name="recipients_optional" class="form-control"
+                       value="{{ (p.get('recipients_optional') or []) | join(', ') }}">
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem">
+              <input type="checkbox" name="no_online_meeting" value="on" id="ics-nom-{{ p.id }}"
+                     {% if p.get('no_online_meeting') %}checked{% endif %}
+                     style="accent-color:var(--accent);width:1rem;height:1rem">
+              <label for="ics-nom-{{ p.id }}" style="margin:0;font-size:0.9rem;cursor:pointer">{{ t("settings.label.no_online_meeting") }}</label>
+            </div>
+            <div class="form-group">
+              <label class="radio-option" style="gap:0.75rem">
+                <input type="checkbox" name="all_day" value="on"
+                       {% if p.all_day %}checked{% endif %}
+                       onchange="toggleIcsEditTimeFields(this, '{{ p.id }}')"
+                       style="accent-color:var(--accent);width:1rem;height:1rem">
+                <span>{{ t("settings.label.all_day_event") }}</span>
+              </label>
+            </div>
+            <div id="ics-edit-time-{{ p.id }}" style="display:{{ 'none' if p.all_day else 'block' }}">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>{{ t("field.start_time") }}</label>
+                  <input type="time" name="start_time" class="form-control"
+                         value="{{ p.start_time or '08:05' }}" style="max-width:10rem">
+                </div>
+                <div class="form-group">
+                  <label>{{ t("field.end_time") }}</label>
+                  <input type="time" name="end_time" class="form-control"
+                         value="{{ p.end_time or '16:35' }}" style="max-width:10rem">
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>{{ t("settings.label.outlook_category") }}</label>
+              <input type="text" name="category" class="form-control" value="{{ p.category or '' }}">
+            </div>
+            <div class="form-group">
+              <label>{{ t("field.subject") }} <span class="hint">Placeholders: {note}, {start_date}, {end_date}, {days}</span></label>
+              <input type="text" name="subject" class="form-control" value="{{ p.subject }}">
+            </div>
+            <div class="form-group">
+              <label>{{ t("field.body_description") }}</label>
+              <input type="text" name="body" class="form-control" value="{{ p.body }}">
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary"
+                      onclick="toggleIcsEditForm('{{ p.id }}')">{{ t("action.cancel") }}</button>
+              <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="field-hint">{{ t("settings.empty.ics_profiles") }}</p>
+    {% endif %}
+
+    <div class="add-repo-section">
+      <button type="button" class="btn btn-secondary" onclick="toggleIcsProfileForm()">{{ t("action.add_profile") }}</button>
+      <div id="new-ics-profile-form" style="display:none; margin-top:1rem">
+        <form action="/settings/ics-profiles" method="post" class="entry-form compact-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label>{{ t("settings.label.name_filename") }}</label>
+              <input type="text" name="name" class="form-control" placeholder="e.g. Team Calendar" required>
+            </div>
+            <div class="form-group">
+              <label>{{ t("settings.label.show_as") }}</label>
+              <select name="show_as" class="form-control">
+                <option value="oof">{{ t("settings.ics.oof") }}</option>
+                <option value="free">{{ t("settings.ics.free") }}</option>
+                <option value="busy">{{ t("settings.ics.busy") }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>{{ t("settings.label.required_recipients") }} <span class="hint">(comma-separated)</span></label>
+              <input type="text" name="recipients_required" class="form-control"
+                     placeholder="chef@firma.de">
+            </div>
+            <div class="form-group">
+              <label>{{ t("settings.label.optional_recipients") }} <span class="hint">(comma-separated)</span></label>
+              <input type="text" name="recipients_optional" class="form-control"
+                     placeholder="team@firma.de">
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem">
+            <input type="checkbox" name="no_online_meeting" value="on" id="ics-new-nom"
+                   style="accent-color:var(--accent);width:1rem;height:1rem">
+            <label for="ics-new-nom" style="margin:0;font-size:0.9rem;cursor:pointer">{{ t("settings.label.no_online_meeting") }}</label>
+          </div>
+          <div class="form-group">
+            <label class="radio-option" style="gap:0.75rem">
+              <input type="checkbox" name="all_day" value="on" checked id="ics-allday-cb"
+                     onchange="toggleIcsTimeFields(this)"
+                     style="accent-color:var(--accent);width:1rem;height:1rem">
+              <span>{{ t("settings.label.all_day_event") }}</span>
+            </label>
+          </div>
+          <div id="ics-time-fields" style="display:none">
+            <div class="form-row">
+              <div class="form-group">
+                <label>{{ t("field.start_time") }}</label>
+                <input type="time" name="start_time" class="form-control" value="08:05" style="max-width:10rem">
+              </div>
+              <div class="form-group">
+                <label>{{ t("field.end_time") }}</label>
+                <input type="time" name="end_time" class="form-control" value="16:35" style="max-width:10rem">
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>{{ t("settings.label.outlook_category") }}</label>
+            <input type="text" name="category" class="form-control" placeholder="leave empty for no category">
+          </div>
+          <div class="form-group">
+            <label>{{ t("field.subject") }} <span class="hint">Placeholders: {note}, {start_date}, {end_date}, {days}</span></label>
+            <input type="text" name="subject" class="form-control"
+                   value="Vacation {start_date}–{end_date}">
+          </div>
+          <div class="form-group">
+            <label>{{ t("field.body_description") }}</label>
+            <input type="text" name="body" class="form-control" value="{note}">
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="toggleIcsProfileForm()">{{ t("action.cancel") }}</button>
+            <button type="submit" class="btn btn-primary">{{ t("action.add_profile") }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </fieldset>
+
+  <!-- ── Appointment ICS Export Profiles ── -->
+  <fieldset class="settings-group" id="appointment-ics-profiles">
+    <legend>{{ t("settings.section.appt_ics") }}</legend>
+    <p class="field-hint">{{ t("settings.hint.appt_ics_profiles") }}</p>
+
+    {% if cfg.appointment_ics_profiles %}
+    <div class="template-list" style="margin-bottom:1rem">
+      {% for p in cfg.appointment_ics_profiles %}
+      <div class="template-card">
+        <div class="template-card-header">
+          <span class="template-name">{{ p.name }}</span>
+          <span class="hint">
+            {{ p.show_as | upper }}
+            · {{ t("settings.ics.summary_allday") if p.all_day else (p.start_time or "?") ~ "–" ~ (p.end_time or "?") }}
+            {% if p.category %} · {{ p.category }}{% endif %}
+          </span>
+          <div class="template-card-actions">
+            <button type="button" class="btn btn-secondary btn-sm"
+                    onclick="toggleApptIcsEditForm('{{ p.id }}')">{{ t("action.edit") }}</button>
+            <form action="/settings/appointment-ics-profiles/{{ p.id }}/delete" method="post" style="display:inline"
+                  onsubmit="return confirm('Delete profile \'{{ p.name }}\'?')">
+              <button type="submit" class="btn btn-danger btn-sm">{{ t("action.delete") }}</button>
+            </form>
+          </div>
+        </div>
+        <div class="field-hint" style="margin-top:0.25rem">
+          Subject: <code>{{ p.subject }}</code>
+          {% set _req = p.get('recipients_required') or p.get('recipients') or [] %}
+          {% if _req %} · {{ t("settings.ics.summary_required") }} {{ _req | join(", ") }}{% endif %}
+          {% if p.get('recipients_optional') %} · {{ t("settings.ics.summary_optional") }} {{ p.recipients_optional | join(", ") }}{% endif %}
+          {% if p.get('no_online_meeting') %} · {{ t("settings.ics.summary_no_om") }}{% endif %}
+        </div>
+        <div id="appt-ics-edit-{{ p.id }}" style="display:none; margin-top:1rem">
+          <form action="/settings/appointment-ics-profiles/{{ p.id }}/edit" method="post" class="entry-form compact-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Name</label>
+                <input type="text" name="name" class="form-control" value="{{ p.name }}" required>
+              </div>
+              <div class="form-group">
+                <label>{{ t("settings.label.show_as") }}</label>
+                <select name="show_as" class="form-control">
+                  <option value="busy" {% if p.show_as == "busy" %}selected{% endif %}>{{ t("settings.ics.busy") }}</option>
+                  <option value="oof" {% if p.show_as == "oof" %}selected{% endif %}>{{ t("settings.ics.oof") }}</option>
+                  <option value="free" {% if p.show_as == "free" %}selected{% endif %}>{{ t("settings.ics.free") }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>{{ t("settings.label.required_recipients") }} <span class="hint">(comma-separated)</span></label>
+                <input type="text" name="recipients_required" class="form-control"
+                       value="{{ (p.get('recipients_required') or p.get('recipients') or []) | join(', ') }}">
+              </div>
+              <div class="form-group">
+                <label>{{ t("settings.label.optional_recipients") }} <span class="hint">(comma-separated)</span></label>
+                <input type="text" name="recipients_optional" class="form-control"
+                       value="{{ (p.get('recipients_optional') or []) | join(', ') }}">
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem">
+              <input type="checkbox" name="no_online_meeting" value="on" id="appt-nom-{{ p.id }}"
+                     {% if p.get('no_online_meeting') %}checked{% endif %}
+                     style="accent-color:var(--accent);width:1rem;height:1rem">
+              <label for="appt-nom-{{ p.id }}" style="margin:0;font-size:0.9rem;cursor:pointer">{{ t("settings.label.no_online_meeting") }}</label>
+            </div>
+            <div class="form-group">
+              <label class="radio-option" style="gap:0.75rem">
+                <input type="checkbox" name="all_day" value="on"
+                       {% if p.all_day %}checked{% endif %}
+                       onchange="toggleApptIcsEditTimeFields(this, '{{ p.id }}')"
+                       style="accent-color:var(--accent);width:1rem;height:1rem">
+                <span>{{ t("settings.label.all_day_event") }}</span>
+              </label>
+            </div>
+            <div id="appt-ics-edit-time-{{ p.id }}" style="display:{{ 'none' if p.all_day else 'block' }}">
+              <div class="form-row">
+                <div class="form-group">
+                  <label>{{ t("field.start_time") }}</label>
+                  <input type="time" name="start_time" class="form-control"
+                         value="{{ p.start_time or '08:00' }}" style="max-width:10rem">
+                </div>
+                <div class="form-group">
+                  <label>{{ t("field.end_time") }}</label>
+                  <input type="time" name="end_time" class="form-control"
+                         value="{{ p.end_time or '17:00' }}" style="max-width:10rem">
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>{{ t("settings.label.outlook_category") }}</label>
+              <input type="text" name="category" class="form-control" value="{{ p.category or '' }}">
+            </div>
+            <div class="form-group">
+              <label>{{ t("field.subject") }}</label>
+              <input type="text" name="subject" class="form-control" value="{{ p.subject }}">
+            </div>
+            <div class="form-group">
+              <label>{{ t("field.body_description") }}</label>
+              <input type="text" name="body" class="form-control" value="{{ p.body }}">
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary"
+                      onclick="toggleApptIcsEditForm('{{ p.id }}')">{{ t("action.cancel") }}</button>
+              <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="field-hint">{{ t("settings.empty.appt_ics_profiles") }}</p>
+    {% endif %}
+
+    <div class="add-repo-section">
+      <button type="button" class="btn btn-secondary" onclick="toggleApptIcsProfileForm()">{{ t("action.add_profile") }}</button>
+      <div id="new-appt-ics-profile-form" style="display:none; margin-top:1rem">
+        <form action="/settings/appointment-ics-profiles" method="post" class="entry-form compact-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label>{{ t("settings.label.name_filename") }}</label>
+              <input type="text" name="name" class="form-control" placeholder="e.g. Team Calendar" required>
+            </div>
+            <div class="form-group">
+              <label>{{ t("settings.label.show_as") }}</label>
+              <select name="show_as" class="form-control">
+                <option value="busy">{{ t("settings.ics.busy") }}</option>
+                <option value="oof">{{ t("settings.ics.oof") }}</option>
+                <option value="free">{{ t("settings.ics.free") }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>{{ t("settings.label.required_recipients") }} <span class="hint">(comma-separated)</span></label>
+              <input type="text" name="recipients_required" class="form-control"
+                     placeholder="chef@firma.de">
+            </div>
+            <div class="form-group">
+              <label>{{ t("settings.label.optional_recipients") }} <span class="hint">(comma-separated)</span></label>
+              <input type="text" name="recipients_optional" class="form-control"
+                     placeholder="team@firma.de">
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem">
+            <input type="checkbox" name="no_online_meeting" value="on" id="appt-ics-new-nom"
+                   style="accent-color:var(--accent);width:1rem;height:1rem">
+            <label for="appt-ics-new-nom" style="margin:0;font-size:0.9rem;cursor:pointer">{{ t("settings.label.no_online_meeting") }}</label>
+          </div>
+          <div class="form-group">
+            <label class="radio-option" style="gap:0.75rem">
+              <input type="checkbox" name="all_day" value="on" checked id="appt-ics-allday-cb"
+                     onchange="toggleApptIcsTimeFields(this)"
+                     style="accent-color:var(--accent);width:1rem;height:1rem">
+              <span>{{ t("settings.label.all_day_event") }}</span>
+            </label>
+          </div>
+          <div id="appt-ics-time-fields" style="display:none">
+            <div class="form-row">
+              <div class="form-group">
+                <label>{{ t("field.start_time") }}</label>
+                <input type="time" name="start_time" class="form-control" value="08:00" style="max-width:10rem">
+              </div>
+              <div class="form-group">
+                <label>{{ t("field.end_time") }}</label>
+                <input type="time" name="end_time" class="form-control" value="17:00" style="max-width:10rem">
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>{{ t("settings.label.outlook_category") }}</label>
+            <input type="text" name="category" class="form-control" placeholder="leave empty for no category">
+          </div>
+          <div class="form-group">
+            <label>{{ t("field.subject") }} <span class="hint">Placeholders: {title}, {type}, {note}, {start_date}, {end_date}, {days}</span></label>
+            <input type="text" name="subject" class="form-control"
+                   value="{title} {start_date}–{end_date}">
+          </div>
+          <div class="form-group">
+            <label>{{ t("field.body_description") }}</label>
+            <input type="text" name="body" class="form-control" value="{note}">
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="toggleApptIcsProfileForm()">{{ t("action.cancel") }}</button>
+            <button type="submit" class="btn btn-primary">{{ t("action.add_profile") }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </fieldset>
+
+  <!-- ── Holiday ICS Export Profiles ── -->
+  <fieldset class="settings-group" id="holiday-ics-profiles">
+    <legend>{{ t("settings.section.holiday_ics") }}</legend>
+    <p class="field-hint">{{ t("settings.hint.holiday_ics_profiles") }}</p>
+
+    {% if cfg.holiday_ics_profiles %}
+    <div class="template-list" style="margin-bottom:1rem">
+      {% for p in cfg.holiday_ics_profiles %}
+      <div class="template-card">
+        <div class="template-card-header">
+          <span class="template-name">{{ p.name }}</span>
+          <span class="hint">{{ p.show_as | upper }}{% if p.category %} · {{ p.category }}{% endif %}</span>
+          <div class="template-card-actions">
+            <button type="button" class="btn btn-secondary btn-sm"
+                    onclick="toggleHolIcsEditForm('{{ p.id }}')">{{ t("action.edit") }}</button>
+            <form action="/settings/holiday-ics-profiles/{{ p.id }}/delete" method="post" style="display:inline"
+                  onsubmit="return confirm('Delete profile \'{{ p.name }}\'?')">
+              <button type="submit" class="btn btn-danger btn-sm">{{ t("action.delete") }}</button>
+            </form>
+          </div>
+        </div>
+        <div class="field-hint" style="margin-top:0.25rem">
+          Subject: <code>{{ p.subject or '{name}' }}</code>
+          {% if p.get('recipients_required') %} · {{ t("settings.ics.summary_required") }} {{ p.recipients_required | join(", ") }}{% endif %}
+          {% if p.get('recipients_optional') %} · {{ t("settings.ics.summary_optional") }} {{ p.recipients_optional | join(", ") }}{% endif %}
+          {% if p.get('no_online_meeting') %} · {{ t("settings.ics.summary_no_om") }}{% endif %}
+        </div>
+        <div id="hol-ics-edit-{{ p.id }}" style="display:none; margin-top:1rem">
+          <form action="/settings/holiday-ics-profiles/{{ p.id }}/edit" method="post" class="entry-form compact-form">
+            <div class="form-row">
+              <div class="form-group">
+                <label>Name</label>
+                <input type="text" name="name" class="form-control" value="{{ p.name }}" required>
+              </div>
+              <div class="form-group">
+                <label>{{ t("settings.label.show_as") }}</label>
+                <select name="show_as" class="form-control">
+                  <option value="free" {% if p.show_as == "free" %}selected{% endif %}>{{ t("settings.ics.free") }}</option>
+                  <option value="oof" {% if p.show_as == "oof" %}selected{% endif %}>{{ t("settings.ics.oof") }}</option>
+                  <option value="busy" {% if p.show_as == "busy" %}selected{% endif %}>{{ t("settings.ics.busy") }}</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label>{{ t("settings.label.required_recipients") }} <span class="hint">(comma-separated)</span></label>
+                <input type="text" name="recipients_required" class="form-control"
+                       value="{{ (p.get('recipients_required') or []) | join(', ') }}">
+              </div>
+              <div class="form-group">
+                <label>{{ t("settings.label.optional_recipients") }} <span class="hint">(comma-separated)</span></label>
+                <input type="text" name="recipients_optional" class="form-control"
+                       value="{{ (p.get('recipients_optional') or []) | join(', ') }}">
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem">
+              <input type="checkbox" name="no_online_meeting" value="on" id="hol-ics-nom-{{ p.id }}"
+                     {% if p.get('no_online_meeting') %}checked{% endif %}
+                     style="accent-color:var(--accent);width:1rem;height:1rem">
+              <label for="hol-ics-nom-{{ p.id }}" style="margin:0;font-size:0.9rem;cursor:pointer">{{ t("settings.label.no_online_meeting") }}</label>
+            </div>
+            <div class="form-group">
+              <label>{{ t("settings.label.outlook_category") }}</label>
+              <input type="text" name="category" class="form-control" value="{{ p.category or '' }}">
+            </div>
+            <div class="form-group">
+              <label>{{ t("field.subject") }} <span class="hint">Placeholders: {name}, {date}</span></label>
+              <input type="text" name="subject" class="form-control" value="{{ p.subject or '{name}' }}">
+            </div>
+            <div class="form-group">
+              <label>{{ t("field.body_description") }}</label>
+              <input type="text" name="body" class="form-control" value="{{ p.body or '' }}">
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn btn-secondary"
+                      onclick="toggleHolIcsEditForm('{{ p.id }}')">{{ t("action.cancel") }}</button>
+              <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+            </div>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="field-hint">{{ t("settings.empty.holiday_ics_profiles") }}</p>
+    {% endif %}
+
+    <div class="add-repo-section">
+      <button type="button" class="btn btn-secondary" onclick="toggleHolIcsProfileForm()">{{ t("action.add_profile") }}</button>
+      <div id="new-hol-ics-profile-form" style="display:none; margin-top:1rem">
+        <form action="/settings/holiday-ics-profiles" method="post" class="entry-form compact-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label>{{ t("settings.label.name_filename") }}</label>
+              <input type="text" name="name" class="form-control" placeholder="e.g. Team Calendar" required>
+            </div>
+            <div class="form-group">
+              <label>{{ t("settings.label.show_as") }}</label>
+              <select name="show_as" class="form-control">
+                <option value="free">{{ t("settings.ics.free") }}</option>
+                <option value="oof">{{ t("settings.ics.oof") }}</option>
+                <option value="busy">{{ t("settings.ics.busy") }}</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>{{ t("settings.label.required_recipients") }} <span class="hint">(comma-separated)</span></label>
+              <input type="text" name="recipients_required" class="form-control" placeholder="chef@firma.de">
+            </div>
+            <div class="form-group">
+              <label>{{ t("settings.label.optional_recipients") }} <span class="hint">(comma-separated)</span></label>
+              <input type="text" name="recipients_optional" class="form-control" placeholder="team@firma.de">
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.75rem">
+            <input type="checkbox" name="no_online_meeting" value="on" id="hol-ics-new-nom"
+                   style="accent-color:var(--accent);width:1rem;height:1rem">
+            <label for="hol-ics-new-nom" style="margin:0;font-size:0.9rem;cursor:pointer">{{ t("settings.label.no_online_meeting") }}</label>
+          </div>
+          <div class="form-group">
+            <label>{{ t("settings.label.outlook_category") }}</label>
+            <input type="text" name="category" class="form-control" placeholder="leave empty for no category">
+          </div>
+          <div class="form-group">
+            <label>{{ t("field.subject") }} <span class="hint">Placeholders: {name}, {date}</span></label>
+            <input type="text" name="subject" class="form-control" value="{name}">
+          </div>
+          <div class="form-group">
+            <label>{{ t("field.body_description") }}</label>
+            <input type="text" name="body" class="form-control">
+          </div>
+          <div class="form-actions">
+            <button type="button" class="btn btn-secondary" onclick="toggleHolIcsProfileForm()">{{ t("action.cancel") }}</button>
+            <button type="submit" class="btn btn-primary">{{ t("action.add_profile") }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </fieldset>
+
+  <!-- ── Notes ── -->
+  <fieldset class="settings-group" id="notes">
+    <legend>{{ t("settings.section.notes") }}</legend>
+    <form action="/settings/notes" method="post" class="entry-form">
+      <div class="form-group">
+        <label>{{ t("settings.label.notes_scroll") }}</label>
+        <div style="display:flex;gap:1.5rem;margin-top:0.4rem">
+          <label class="radio-option" style="gap:0.6rem">
+            <input type="radio" name="notes_scroll_position" value="end"
+                   {% if cfg.get('notes_scroll_position', 'end') == 'end' %}checked{% endif %}
+                   style="accent-color:var(--accent)">
+            <span>{{ t("settings.label.scroll_end") }}</span>
+          </label>
+          <label class="radio-option" style="gap:0.6rem">
+            <input type="radio" name="notes_scroll_position" value="start"
+                   {% if cfg.get('notes_scroll_position', 'end') == 'start' %}checked{% endif %}
+                   style="accent-color:var(--accent)">
+            <span>{{ t("settings.label.scroll_start") }}</span>
+          </label>
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:0.75rem">
+        <label class="radio-option" style="gap:0.75rem">
+          <input type="checkbox" name="notes_line_numbers" value="on"
+                 {% if cfg.get('notes_line_numbers', false) %}checked{% endif %}
+                 style="accent-color:var(--accent);width:1rem;height:1rem">
+          <span>{{ t("settings.label.show_line_numbers") }}</span>
+        </label>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+      </div>
+    </form>
+  </fieldset>
+
+  <!-- ── Sprints ── -->
+  <fieldset class="settings-group" id="sprints">
+    <legend>{{ t("settings.section.sprints") }}</legend>
+    <form action="/settings/sprints" method="post" class="entry-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label><i data-lucide="flag" class="icon-xs"></i> {{ t("settings.label.sprint_anchor") }}</label>
+          <input type="date" name="sprint_anchor_date" class="form-control"
+                 value="{{ cfg.sprint_anchor_date | default('') }}" style="max-width:12rem">
+        </div>
+        <div class="form-group">
+          <label><i data-lucide="tag" class="icon-xs"></i> {{ t("settings.label.sprint_prefix") }}</label>
+          <input type="text" name="sprint_name_prefix" class="form-control"
+                 value="{{ cfg.sprint_name_prefix | default('PFM Sprint') }}" style="max-width:14rem"
+                 placeholder="PFM Sprint">
+        </div>
+        <div class="form-group">
+          <label><i data-lucide="clock" class="icon-xs"></i> {{ t("settings.label.sprint_duration") }}</label>
+          <input type="number" name="sprint_duration_weeks" class="form-control"
+                 value="{{ cfg.sprint_duration_weeks | default(3) }}" min="1" max="12" style="max-width:6rem">
+        </div>
+      </div>
+      <div class="form-group">
+        <label><i data-lucide="calendar-x" class="icon-xs"></i> {{ t("settings.label.sprint_blocked_types") }}</label>
+        <div style="display:flex;flex-wrap:wrap;gap:0.75rem;margin-top:0.25rem">
+          {% set blocked = cfg.sprint_blocked_appointment_types | default([]) %}
+          {% for ctype, lbl in [('training','Training'),('conference','Conference'),('team_event','Team Event'),('business_trip','Business Trip'),('other','Other')] %}
+          <label class="radio-option" style="flex-direction:row;gap:0.4rem;align-items:center;cursor:pointer">
+            <input type="checkbox" name="sprint_blocked_appointment_types" value="{{ ctype }}"
+                   {% if ctype in blocked %}checked{% endif %}>
+            {{ t("settings.appt_type." ~ ctype) }}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      {% if cfg.sprint_anchor_date %}
+      <p class="hint" style="margin-bottom:0.5rem">
+        <a href="/calendar/capacity" style="color:var(--accent)"><i data-lucide="bar-chart-2" class="icon-xs"></i> View sprint capacity →</a>
+      </p>
+      {% endif %}
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+      </div>
+    </form>
+  </fieldset>
+
+  <!-- ── Link Sections ── -->
+  <fieldset class="settings-group" id="link-sections">
+    <legend>{{ t("settings.section.link_sections") }}</legend>
+    <p class="field-hint" style="margin-bottom:0.75rem">{{ t("settings.hint.link_sections") }}</p>
+    <div style="background:var(--bg-sidebar);border-radius:4px;padding:0.6rem 0.8rem;margin-bottom:1rem;font-size:0.85rem">
+      <strong>{{ t("settings.label.floccus_url") }}</strong> <code id="link-sections-base-url"></code>
+      <script>document.getElementById('link-sections-base-url').textContent = window.location.origin;</script>
+    </div>
+
+    {% for section in cfg.get('link_sections', []) %}
+    <div class="card" style="padding:0.75rem 1rem;margin-bottom:0.75rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem;flex-wrap:wrap">
+        <div>
+          <strong>{{ section.name }}</strong>
+          <span style="font-size:0.78rem;color:var(--text-muted);margin-left:0.5rem">id: {{ section.id }}</span>
+          {% if section.floccus_enabled %}
+          <span class="badge badge-success" style="margin-left:0.5rem">Floccus: {{ section.floccus_username }}</span>
+          {% endif %}
+        </div>
+        <div style="display:flex;gap:0.4rem">
+          <button class="btn btn-sm" onclick="toggleSectionEdit('{{ section.id }}')">{{ t("action.edit") }}</button>
+          <form method="post" action="/settings/link-sections/{{ section.id }}/delete" style="margin:0"
+                onsubmit="return confirm('Delete section \'{{ section.name }}\'? This does NOT delete the stored links.')">
+            <button type="submit" class="btn btn-danger btn-sm">{{ t("action.delete") }}</button>
+          </form>
+        </div>
+      </div>
+      <div id="section-edit-{{ section.id }}" style="display:none;margin-top:0.75rem;border-top:1px solid var(--border);padding-top:0.75rem">
+        <form method="post" action="/settings/link-sections/{{ section.id }}/edit" class="entry-form" style="margin:0">
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" name="name" class="form-control" value="{{ section.name }}" required>
+          </div>
+          <div class="form-group">
+            <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
+              <input type="checkbox" name="floccus_enabled" value="1"
+                     {% if section.floccus_enabled %}checked{% endif %}>
+              {{ t("settings.label.enable_floccus") }}
+            </label>
+          </div>
+          <div class="form-group">
+            <label>{{ t("settings.label.floccus_username") }}</label>
+            <input type="text" name="floccus_username" class="form-control" autocomplete="off"
+                   value="{{ section.floccus_username }}" placeholder="user">
+          </div>
+          <div class="form-group">
+            <label>{{ t("settings.label.floccus_password") }}</label>
+            <input type="password" name="floccus_password" class="form-control" autocomplete="new-password"
+                   placeholder="{{ '••••••••' if section.floccus_password else 'Set password…' }}">
+            <div class="field-hint">{{ t("settings.hint.floccus_password") }}</div>
+          </div>
+          {% if section.floccus_enabled and section.floccus_username %}
+          <div class="field-hint" style="padding:0.6rem 0.8rem;background:var(--bg-sidebar);border-radius:4px;margin-bottom:0.5rem">
+            <strong>Floccus config:</strong> Server type: <code>Nextcloud Bookmarks</code> ·
+            URL: <code id="floccus-url-{{ section.id }}"></code> ·
+            Username: <code>{{ section.floccus_username }}</code>
+            <script>document.getElementById('floccus-url-{{ section.id }}').textContent = window.location.origin;</script>
+          </div>
+          {% endif %}
+          <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+            <button type="button" class="btn" onclick="toggleSectionEdit('{{ section.id }}')">{{ t("action.cancel") }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+
+    <!-- Add new section -->
+    <details style="margin-top:0.5rem">
+      <summary class="btn btn-sm" style="cursor:pointer;display:inline-flex;align-items:center;gap:0.3rem">
+        <i data-lucide="plus" class="icon-xs"></i> {{ t("action.add_section") }}
+      </summary>
+      <form method="post" action="/settings/link-sections/new" class="entry-form" style="margin-top:0.75rem">
+        <div class="form-group">
+          <label>Name *</label>
+          <input type="text" name="name" class="form-control" required placeholder="Work, Personal…">
+        </div>
+        <div class="form-group">
+          <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
+            <input type="checkbox" name="floccus_enabled" value="1">
+            {{ t("settings.label.enable_floccus") }}
+          </label>
+        </div>
+        <div class="form-group">
+          <label>{{ t("settings.label.floccus_username") }}</label>
+          <input type="text" name="floccus_username" class="form-control" autocomplete="off" placeholder="user">
+        </div>
+        <div class="form-group">
+          <label>{{ t("settings.label.floccus_password") }}</label>
+          <input type="password" name="floccus_password" class="form-control" autocomplete="new-password" placeholder="Password…">
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">{{ t("action.add") }}</button>
+        </div>
+      </form>
+    </details>
+
+    <script>
+    function toggleSectionEdit(id) {
+      var el = document.getElementById('section-edit-' + id);
+      el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    }
+    </script>
+  </fieldset>
+
+  <!-- ── TLS / HTTPS ── -->
+  <fieldset class="settings-group" id="tls">
+    <legend>{{ t("settings.section.tls") }}</legend>
+    <form action="/settings/tls" method="post" class="entry-form" id="tls-form">
+      <div class="form-group">
+        <label>{{ t("settings.label.tls_mode") }}</label>
+        <div class="radio-group">
+          <label class="radio-option">
+            <input type="radio" name="tls_mode" value="http"
+                   {% if cfg.tls_mode == 'http' or not cfg.tls_mode %}checked{% endif %}
+                   onchange="switchTlsPanel('http')">
+            <span>{{ t("settings.tls.http") }}</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="tls_mode" value="selfsigned"
+                   {% if cfg.tls_mode == 'selfsigned' %}checked{% endif %}
+                   onchange="switchTlsPanel('selfsigned')">
+            <span>{{ t("settings.tls.selfsigned") }}</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="tls_mode" value="custom"
+                   {% if cfg.tls_mode == 'custom' %}checked{% endif %}
+                   onchange="switchTlsPanel('custom')">
+            <span>{{ t("settings.tls.custom") }}</span>
+          </label>
+        </div>
+      </div>
+
+      <div id="tls-panel-selfsigned"
+           style="display:{{ 'block' if cfg.tls_mode == 'selfsigned' else 'none' }}">
+        <div class="form-group">
+          <label>{{ t("settings.label.tls_san") }}</label>
+          <input type="text" name="tls_san" id="tls-san-input" class="form-control"
+                 value="{{ cfg.tls_san }}"
+                 placeholder="localhost, 127.0.0.1, 192.168.1.10, myserver.local">
+          <div class="field-hint">{{ t("settings.hint.tls_san") }}</div>
+        </div>
+        <div id="tls-ca-info-wrap">
+          {% if tls_ca_pem %}
+          {% with ca_pem=tls_ca_pem, expiry=tls_cert_expiry, cn=cfg.tls_san.split(',')[0].strip(), sans=cfg.tls_san.split(',') %}
+          {% include "partials/tls_ca_info.html" %}
+          {% endwith %}
+          {% endif %}
+        </div>
+        <div class="form-actions" style="justify-content:flex-start; margin-top:0.5rem">
+          <button type="button" class="btn btn-secondary"
+                  hx-post="/settings/tls/generate"
+                  hx-include="#tls-san-input"
+                  hx-target="#tls-ca-info-wrap"
+                  hx-swap="innerHTML"
+                  hx-indicator="#tls-gen-spin">
+            <i data-lucide="key" class="icon-xs"></i> {{ t("action.generate_cert") }}
+          </button>
+          <span id="tls-gen-spin" class="htmx-indicator spinner">⏳</span>
+        </div>
+      </div>
+
+      <div id="tls-panel-custom"
+           style="display:{{ 'block' if cfg.tls_mode == 'custom' else 'none' }}">
+        <div class="form-group">
+          <label>Certificate (CRT/PEM) <span class="hint">(leave empty to keep existing)</span></label>
+          <textarea name="tls_custom_crt" class="form-control monospace" rows="6"
+                    placeholder="-----BEGIN CERTIFICATE-----"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Private Key (PEM) <span class="hint">(leave empty to keep existing)</span></label>
+          <textarea name="tls_custom_key" class="form-control monospace" rows="6"
+                    placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{ t("action.save_tls") }}</button>
+      </div>
+      <p class="field-hint" style="margin-top:0.5rem">{{ t("settings.hint.tls_restart") }}</p>
+    </form>
+  </fieldset>
+
+  <!-- ── System ── -->
+  <fieldset class="settings-group" id="system">
+    <legend>{{ t("settings.section.system") }}</legend>
+    <form action="/settings/metrics" method="post" class="entry-form">
+      <div class="form-group">
+        <label class="radio-option" style="gap:0.75rem">
+          <input type="checkbox" name="metrics_enabled" value="on"
+                 {% if cfg.metrics_enabled %}checked{% endif %}
+                 style="accent-color: var(--accent); width:1rem; height:1rem">
+          <span>{{ t("settings.label.metrics") }}</span>
+        </label>
+        <div class="field-hint" style="margin-top:0.4rem">{{ t("settings.hint.metrics") }}</div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+      </div>
+    </form>
+    <div class="form-group" style="margin-top:1rem">
+      <label>{{ t("settings.label.force_sync") }}</label>
+      <p class="field-hint">{{ t("settings.hint.force_sync") }}</p>
+      <button type="button" class="btn btn-primary btn-sm"
+              hx-post="/api/sync"
+              hx-target="#sync-result"
+              hx-swap="innerHTML">
+        {{ t("action.force_sync") }}
+      </button>
+      <span id="sync-result" style="margin-left:0.75rem"></span>
+    </div>
+    <form action="/settings/cache" method="post" class="entry-form" style="margin-top:1rem">
+      <div class="form-group">
+        <label for="cache_max_file_mb">{{ t("settings.label.cache_size") }}</label>
+        <input type="number" id="cache_max_file_mb" name="cache_max_file_mb" min="1" max="100"
+               value="{{ cfg.cache_max_file_mb | default(10) }}"
+               style="width:6rem">
+        <p class="field-hint">{{ t("settings.hint.cache_size") }}</p>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+      </div>
+    </form>
+    <div class="form-group" style="margin-top:1rem">
+      <label>{{ t("settings.label.flush_cache") }}</label>
+      <p class="field-hint">{{ t("settings.hint.flush_cache") }}</p>
+      <button type="button" class="btn btn-secondary btn-sm"
+              hx-post="/api/cache/flush"
+              hx-target="#cache-flush-result"
+              hx-swap="innerHTML">
+        {{ t("action.flush_cache") }}
+      </button>
+      <span id="cache-flush-result" style="margin-left:0.75rem"></span>
+    </div>
+    <div class="form-group" style="margin-top:1rem">
+      <label>{{ t("settings.label.restart") }}</label>
+      <p class="field-hint">{{ t("settings.hint.restart") }}</p>
+      <button type="button" class="btn btn-danger btn-sm"
+              hx-post="/api/restart"
+              hx-confirm="{{ t('confirm.restart') }}"
+              hx-swap="none"
+              hx-on::after-request="showRestartBanner()">
+        {{ t("action.restart") }}
+      </button>
+      <div id="restart-banner" style="display:none" class="alert alert-success" style="margin-top:0.75rem">
+        {{ t("settings.msg.restart") }}
+      </div>
+    </div>
+  </fieldset>
+
+  <!-- ── Data Export / Import + Encryption ── -->
+  <fieldset class="settings-group" id="data">
+    <legend>{{ t("settings.section.data") }}</legend>
+
+    <div class="form-group">
+      <label>{{ t("settings.label.export_settings") }}</label>
+      <p class="field-hint">{{ t("settings.hint.export_settings") }}</p>
+      <form method="post" action="/settings/export" style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+        <input type="password" name="password" class="form-control" style="max-width:16rem"
+               placeholder="Encryption password" required autocomplete="new-password">
+        <button type="submit" class="btn btn-secondary btn-sm">⬇ {{ t("action.export_backup") }}</button>
+      </form>
+    </div>
+
+    <div class="form-group" style="margin-top:1rem">
+      <label>{{ t("settings.label.import_settings") }}</label>
+      <p class="field-hint">{{ t("settings.hint.import_settings") }}</p>
+      <form action="/settings/import" method="post" enctype="multipart/form-data"
+            style="display:flex;gap:0.5rem;align-items:flex-end;flex-wrap:wrap">
+        <div>
+          <label class="hint" style="display:block;margin-bottom:0.25rem">{{ t("settings.label.backup_file") }}</label>
+          <input type="file" name="file" accept=".dhbak,.json" class="form-control" style="max-width:20rem" required>
+        </div>
+        <div>
+          <label class="hint" style="display:block;margin-bottom:0.25rem">{{ t("settings.label.import_password") }}</label>
+          <input type="password" name="import_password" class="form-control" style="max-width:14rem"
+                 placeholder="Decryption password" autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-secondary btn-sm"
+                onclick="return confirm('{{ t('confirm.import_settings') }}')">
+          {{ t("action.import_file") }}
+        </button>
+      </form>
+    </div>
+
+    <div class="form-group" style="margin-top:1rem">
+      <label>{{ t("settings.label.backup_repo") }}</label>
+      <p class="field-hint">{{ t("settings.hint.backup_repo") }}</p>
+      <div id="backup-result"></div>
+      <form hx-post="/settings/backup-to-repo" hx-target="#backup-result" hx-swap="innerHTML"
+            style="display:flex;gap:0.5rem;align-items:flex-end;flex-wrap:wrap">
+        <div>
+          <label class="hint" style="display:block;margin-bottom:0.25rem">Repository</label>
+          <select name="backup_repo_id" class="form-control" style="max-width:18rem">
+            {% for repo in cfg.get('repos', []) %}
+            <option value="{{ repo.id }}">{{ repo.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="hint" style="display:block;margin-bottom:0.25rem">{{ t("field.password") }}</label>
+          <input type="password" name="backup_password" class="form-control" style="max-width:14rem"
+                 placeholder="Encryption password" required autocomplete="new-password">
+        </div>
+        <button type="submit" class="btn btn-secondary btn-sm">☁ {{ t("action.backup_now") }}</button>
+      </form>
+    </div>
+    <div class="form-group" style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border)">
+      <label>{{ t("settings.label.encryption_key") }}</label>
+      <p class="field-hint">
+        SSH keys, PATs, CA certificates and GPG keys are encrypted with <strong>Fernet AES-128</strong>
+        and stored in <code>/data/settings.json</code>.
+        The key is auto-generated at <code>/data/.secret_key</code> or set via <code>SECRET_KEY</code> env var.
+      </p>
+      <label class="hint">Set as <code>SECRET_KEY</code> env var to use this key on a new instance:</label>
+      <div class="input-row" style="margin-top:0.4rem">
+        <input type="password" class="form-control monospace" readonly
+               value="{{ new_key }}" id="generated-key">
+        <button type="button" class="btn btn-secondary"
+                onclick="copyText(document.getElementById('generated-key').value)">
+          {{ t("action.copy") }}
+        </button>
+      </div>
+    </div>
+  </fieldset>
+</div>
+
+<script>
+function toggleNewRepo() {
+  const f = document.getElementById('new-repo-form');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleRepoEdit(id) {
+  const f = document.getElementById('edit-' + id);
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleRepoCopy(id) {
+  const f = document.getElementById('copy-' + id);
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+function switchAuthPanel(prefix, mode) {
+  ['ssh', 'pat', 'basic', 'none'].forEach(m => {
+    const panel = document.getElementById(m + '-panel-' + prefix);
+    if (panel) panel.style.display = (m === mode) ? 'block' : 'none';
+  });
+}
+
+async function generateKeypairFor(prefix) {
+  const resp = await fetch('/settings/generate-keypair', { method: 'POST' });
+  const data = await resp.json();
+  const keyEl = document.getElementById('ssh-key-' + prefix);
+  const pubEl = document.getElementById('pubkey-' + prefix);
+  const secEl = document.getElementById('pubkey-section-' + prefix);
+  if (keyEl) keyEl.value = data.private_key;
+  if (pubEl) pubEl.value = data.public_key;
+  if (secEl) secEl.style.display = 'block';
+}
+
+function toggleNewTemplate() {
+  const f = document.getElementById('new-template-form');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+function toggleTplEdit(id) {
+  const f = document.getElementById('tpl-edit-' + id);
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+
+function switchTlsPanel(mode) {
+  ['selfsigned', 'custom'].forEach(m => {
+    const p = document.getElementById('tls-panel-' + m);
+    if (p) p.style.display = (m === mode) ? 'block' : 'none';
+  });
+}
+
+function showRestartBanner() {
+  const b = document.getElementById('restart-banner');
+  if (b) {
+    b.style.display = 'block';
+    setTimeout(() => location.reload(), 5000);
+  }
+}
+
+function updatePrimary(modKey) {
+  const checked = [...document.querySelectorAll(`input[name="${modKey}_repos"]:checked`)].map(el => el.value);
+  const sel = document.getElementById('primary-' + modKey);
+  const current = sel.value;
+  [...sel.options].forEach(opt => {
+    opt.hidden = !checked.includes(opt.value);
+  });
+  if (!checked.includes(current) && checked.length > 0) {
+    sel.value = checked[0];
+  }
+}
+
+function toggleIcsProfileForm() {
+  const el = document.getElementById('new-ics-profile-form');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function toggleIcsTimeFields(cb) {
+  document.getElementById('ics-time-fields').style.display = cb.checked ? 'none' : 'block';
+}
+function toggleIcsEditForm(profileId) {
+  const el = document.getElementById('ics-edit-' + profileId);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function toggleIcsEditTimeFields(cb, profileId) {
+  document.getElementById('ics-edit-time-' + profileId).style.display = cb.checked ? 'none' : 'block';
+}
+function toggleApptIcsProfileForm() {
+  const el = document.getElementById('new-appt-ics-profile-form');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function toggleApptIcsTimeFields(cb) {
+  document.getElementById('appt-ics-time-fields').style.display = cb.checked ? 'none' : 'block';
+}
+function toggleApptIcsEditForm(profileId) {
+  const el = document.getElementById('appt-ics-edit-' + profileId);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function toggleApptIcsEditTimeFields(cb, profileId) {
+  document.getElementById('appt-ics-edit-time-' + profileId).style.display = cb.checked ? 'none' : 'block';
+}
+
+function toggleHolIcsProfileForm() {
+  const el = document.getElementById('new-hol-ics-profile-form');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function toggleHolIcsEditForm(profileId) {
+  const el = document.getElementById('hol-ics-edit-' + profileId);
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+// Auto-attach eye toggle to all password inputs
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('input[type="password"]').forEach(input => {
+    const wrapper = document.createElement('div');
+    wrapper.className = 'input-with-icon';
+    input.parentNode.insertBefore(wrapper, input);
+    wrapper.appendChild(input);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'input-icon-btn';
+    btn.title = 'Show / hide';
+    btn.textContent = '👁';
+    btn.addEventListener('click', () => {
+      const visible = input.type === 'text';
+      input.type = visible ? 'password' : 'text';
+      btn.textContent = visible ? '👁' : '🙈';
+    });
+    wrapper.appendChild(btn);
+  });
+});
+</script>
+<script src="/static/editor.js"></script>
+{% endblock %}

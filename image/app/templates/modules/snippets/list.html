@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Snippets – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="code-2" class="icon-sm"></i> {{ t("nav.snippets") }}</h1>
+  <div style="display:flex;align-items:center;gap:0.5rem">
+    <a href="/help/snippets" class="btn btn-sm" title="Help"><i data-lucide="help-circle" class="icon-xs"></i></a>
+    <a href="/snippets/new" class="btn btn-primary">+ {{ t("action.new") }}</a>
+  </div>
+</div>
+
+{% if saved %}
+<div class="alert alert-success" style="margin-bottom:1rem">{{ t("msg.saved_snippet") }}</div>
+{% endif %}
+
+{% if not configured %}
+<div class="alert alert-info">No repository configured. Add one in <a href="/settings">Settings</a>.</div>
+{% else %}
+
+<div style="margin-bottom:1rem">
+  <button type="button" class="btn btn-sm bulk-select-btn" onclick="toggleBulk('snippets-bulk')" id="snippets-select-btn">{{ t("action.select") }}</button>
+</div>
+
+<!-- Search -->
+<form method="get" action="/snippets" style="margin-bottom:1.25rem;display:flex;gap:0.5rem">
+  <input type="text" name="q" value="{{ q }}" placeholder="Search snippets and commands…"
+         class="form-control" style="flex:1" autocomplete="off">
+  {% if q %}
+  <a href="/snippets" class="btn" title="Clear search">✕</a>
+  {% endif %}
+  <button type="submit" class="btn btn-primary">{{ t("action.search") }}</button>
+</form>
+
+{% if snippets %}
+{% if q %}
+<p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem">{{ snippets | length }} {{ t("label.results_for") }} "{{ q }}"</p>
+{% endif %}
+
+<form id="snippets-bulk" method="post" action="/snippets/bulk-delete">
+<div class="module-list">
+{% for sn in snippets %}
+<div class="module-list-row">
+  <input type="checkbox" name="ids" value="{{ sn.id }}" class="bulk-checkbox" onchange="bulkChanged('snippets-bulk')">
+  <div class="card" style="flex:1;min-width:0">
+    <div class="mod-card">
+      <div class="mod-card-info">
+        <a href="/snippets/{{ sn.id }}" class="mod-card-title" style="text-decoration:none;color:inherit;display:block">{{ sn.title }}</a>
+        <div class="mod-card-meta">
+          <span>{{ sn.steps | length }} step{{ 's' if sn.steps | length != 1 }}</span>
+          {% if sn.description %}<span>{{ sn.description }}</span>{% endif %}
+        </div>
+      </div>
+      <div class="mod-card-actions">
+        <button type="button" class="btn btn-sm fav-btn {% if sn.id in favorite_ids %}fav-active{% endif %}" title="{% if sn.id in favorite_ids %}Remove from favorites{% else %}Add to favorites{% endif %}"
+                hx-post="/api/favorites/toggle" hx-target="this" hx-swap="outerHTML"
+                hx-vals='{"module":"snippets","entry_id":"{{ sn.id }}","title":"{{ sn.title | e }}","url":"/snippets/{{ sn.id }}"}'>
+          <i data-lucide="star" class="icon-xs"></i>
+        </button>
+        <a href="/snippets/{{ sn.id }}/edit" class="btn btn-sm" title="{{ t('action.edit') }}"><i data-lucide="pencil" class="icon-xs"></i></a>
+        <a href="/snippets/{{ sn.id }}/history" class="btn btn-sm" title="History"><i data-lucide="history" class="icon-xs"></i></a>
+        <form method="post" action="/snippets/{{ sn.id }}/delete" style="margin:0"
+              onsubmit="return confirm('{{ t('confirm.delete') }}')">
+          <button type="submit" class="btn btn-danger btn-sm"><i data-lucide="trash-2" class="icon-xs"></i></button>
+        </form>
+      </div>
+    </div>
+    {% if sn.steps %}
+    <div style="margin-top:0.75rem;display:flex;flex-direction:column;gap:0.4rem">
+    {% for step in sn.steps[:3] %}
+      <div style="display:flex;align-items:center;gap:0.5rem">
+        <code style="flex:1;font-size:0.8rem;background:var(--bg-secondary);border:1px solid var(--border);border-radius:4px;padding:0.2rem 0.5rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">{{ step.command }}</code>
+        <button type="button" class="btn btn-sm" onclick='copyCmd(this, {{ step.command | tojson }})' title="Copy"><i data-lucide="clipboard" class="icon-xs"></i></button>
+      </div>
+    {% endfor %}
+    {% if sn.steps | length > 3 %}
+    <a href="/snippets/{{ sn.id }}" style="font-size:0.8rem;color:var(--text-muted)">+ {{ sn.steps | length - 3 }} more…</a>
+    {% endif %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+</div>
+<div class="bulk-toolbar" id="snippets-bulk-toolbar">
+  <span class="bulk-count" id="snippets-bulk-count"></span>
+  <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('{{ t('confirm.delete_selected') }}')">
+    <i data-lucide="trash-2" class="icon-xs"></i> Delete selected
+  </button>
+  <button type="button" class="btn btn-sm" onclick="toggleBulk('snippets-bulk')">{{ t("action.cancel") }}</button>
+</div>
+</form>
+
+{% elif q %}
+<div class="alert alert-info">{{ t("empty.snippets_search", q=q) }}</div>
+{% else %}
+<div class="alert alert-info">{{ t("empty.snippets") }} <a href="/snippets/new">Create one.</a></div>
+{% endif %}
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyCmd(btn, text) {
+  var orig = btn.innerHTML;
+  copyText(text).then(function() { btn.textContent = '✓'; setTimeout(function() { btn.innerHTML = orig; if (window.lucide) lucide.createIcons({el: btn}); }, 1500); });
+}
+function toggleBulk(formId) {
+  const form = document.getElementById(formId);
+  const isActive = form.classList.toggle('bulk-mode');
+  const toolbar = document.getElementById(formId + '-toolbar');
+  const btn = document.getElementById(formId.replace('-bulk','') + '-select-btn');
+  if (!isActive) {
+    form.querySelectorAll('.bulk-checkbox').forEach(cb => cb.checked = false);
+    if (toolbar) toolbar.classList.remove('visible');
+  }
+  if (btn) btn.textContent = isActive ? 'Cancel' : 'Select';
+}
+function bulkChanged(formId) {
+  const form = document.getElementById(formId);
+  const checked = form.querySelectorAll('.bulk-checkbox:checked').length;
+  const toolbar = document.getElementById(formId + '-toolbar');
+  const countEl = document.getElementById(formId + '-count');
+  if (toolbar) toolbar.classList.toggle('visible', checked > 0);
+  if (countEl) countEl.textContent = checked + ' selected';
+}
+</script>
+{% endblock %}

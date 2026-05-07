@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Tasks – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="check-square-2" class="icon-sm"></i> {{ t("nav.tasks") }}</h1>
+  <div style="display:flex;align-items:center;gap:0.5rem">
+    <a href="/help/tasks" class="btn btn-sm" title="Help"><i data-lucide="help-circle" class="icon-xs"></i></a>
+    <a href="#new-form" class="btn btn-primary">{{ t("action.new_task") }}</a>
+  </div>
+</div>
+
+{% if saved %}
+<div class="alert alert-success" style="margin-bottom:1rem">{{ t("msg.saved_task") }}</div>
+{% endif %}
+
+{% if not configured %}
+<div class="alert alert-warning">
+  {{ t("msg.no_repo") | safe }}
+</div>
+{% else %}
+
+<div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:1rem;flex-wrap:wrap">
+  <button type="button" class="btn btn-sm bulk-select-btn" onclick="toggleBulk('tasks-bulk')" id="tasks-select-btn">{{ t("action.select") }}</button>
+  <form method="get" action="/tasks" style="display:flex;gap:0.5rem;flex:1;min-width:0">
+    <input type="text" name="q" class="form-control" placeholder="Search tasks…"
+           value="{{ q }}" autocomplete="off" style="max-width:280px">
+    {% if q %}<a href="/tasks" class="btn btn-sm" title="Clear">✕</a>{% endif %}
+  </form>
+</div>
+{% if q %}
+<p style="font-size:0.85rem;color:var(--text-muted)">
+  Results for <strong>{{ q }}</strong> — {{ open_tasks|length + done_tasks|length }} task(s) found
+</p>
+{% endif %}
+
+<div id="new-form">
+  <h2 style="margin-top:0">{{ t("label.new_task_heading") }}</h2>
+  <form method="post" action="/tasks" class="entry-form">
+    <div class="form-group">
+      <label>{{ t("field.title_required") }}</label>
+      <input type="text" name="title" class="form-control" placeholder="Task title…" required autocomplete="off" autofocus>
+    </div>
+    <div class="form-group">
+      <label>{{ t("field.description") }}</label>
+      <textarea name="description" class="form-control" rows="3" placeholder="Optional…"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>{{ t("field.due_date") }}</label>
+        <input type="date" name="due_date" class="form-control">
+      </div>
+      <div class="form-group">
+        <label>{{ t("field.priority") }}</label>
+        <select name="priority" class="form-control">
+          <option value="medium">{{ t("priority.medium") }}</option>
+          <option value="high">{{ t("priority.high") }}</option>
+          <option value="low">{{ t("priority.low") }}</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>{{ t("field.recurring") }}</label>
+        <select name="recurring" class="form-control">
+          <option value="none">{{ t("recurring.none") }}</option>
+          <option value="daily">{{ t("recurring.daily") }}</option>
+          <option value="weekly">{{ t("recurring.weekly") }}</option>
+          <option value="monthly">{{ t("recurring.monthly") }}</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{{ t("action.add") }}</button>
+      <a href="/tasks" class="btn btn-secondary">{{ t("action.cancel") }}</a>
+    </div>
+  </form>
+</div>
+
+<form id="tasks-bulk" method="post" action="/tasks/bulk-delete">
+<!-- Open tasks -->
+<div class="task-list" id="open-tasks">
+  {% if open_tasks %}
+    {% for task in open_tasks %}
+      <div class="module-list-row">
+        <input type="checkbox" name="ids" value="{{ task.id }}" class="bulk-checkbox" onchange="bulkChanged('tasks-bulk')">
+        <div style="flex:1;min-width:0">{% include "modules/tasks/_task_row.html" %}</div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <p class="empty-state">{{ t("empty.tasks") }}</p>
+  {% endif %}
+</div>
+
+<!-- Done tasks -->
+{% if done_tasks %}
+<details class="task-done-section" style="margin-top:1.5rem">
+  <summary class="task-done-summary">Done ({{ done_tasks|length }})</summary>
+  <div class="task-list task-list-done" style="margin-top:0.75rem">
+    {% for task in done_tasks %}
+      <div class="module-list-row">
+        <input type="checkbox" name="ids" value="{{ task.id }}" class="bulk-checkbox" onchange="bulkChanged('tasks-bulk')">
+        <div style="flex:1;min-width:0">{% include "modules/tasks/_task_row.html" %}</div>
+      </div>
+    {% endfor %}
+  </div>
+</details>
+{% endif %}
+
+<div class="bulk-toolbar" id="tasks-bulk-toolbar">
+  <span class="bulk-count" id="tasks-bulk-count"></span>
+  <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('{{ t('confirm.delete_selected') }}')">
+    <i data-lucide="trash-2" class="icon-xs"></i> Delete selected
+  </button>
+  <button type="button" class="btn btn-sm" onclick="toggleBulk('tasks-bulk')">{{ t("action.cancel") }}</button>
+</div>
+</form>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleBulk(formId) {
+  const form = document.getElementById(formId);
+  const isActive = form.classList.toggle('bulk-mode');
+  const toolbar = document.getElementById(formId + '-toolbar');
+  const btn = document.getElementById(formId.replace('-bulk','') + '-select-btn');
+  if (!isActive) {
+    form.querySelectorAll('.bulk-checkbox').forEach(cb => cb.checked = false);
+    if (toolbar) toolbar.classList.remove('visible');
+  }
+  if (btn) btn.textContent = isActive ? 'Cancel' : 'Select';
+}
+function bulkChanged(formId) {
+  const form = document.getElementById(formId);
+  const checked = form.querySelectorAll('.bulk-checkbox:checked').length;
+  const toolbar = document.getElementById(formId + '-toolbar');
+  const countEl = document.getElementById(formId + '-count');
+  if (toolbar) toolbar.classList.toggle('visible', checked > 0);
+  if (countEl) countEl.textContent = checked + ' selected';
+}
+</script>
+{% endblock %}

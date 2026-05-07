@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}{{ t("label.edit_ticket_template") if template else t("label.new_ticket_template") }} – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="ticket" class="icon-sm"></i> {{ t("label.edit_ticket_template") if template else t("label.new_ticket_template") }}</h1>
+</div>
+
+<form method="post" action="/ticket-templates/{{ template.id + '/edit' if template else 'new' }}" class="entry-form">
+  <div class="form-group">
+    <label>{{ t("field.name_required") }}</label>
+    <input type="text" name="name" class="form-control" required autofocus autocomplete="off"
+           value="{{ template.name if template else '' }}" placeholder="Template name…">
+  </div>
+  <div class="form-group">
+    <label>{{ t("field.description") }}</label>
+    <input type="text" name="description" class="form-control" autocomplete="off"
+           value="{{ template.description if template else '' }}" placeholder="Short description / title…">
+    <p class="field-hint">{{ t("field.hint.description_ticket") }}</p>
+  </div>
+  <div class="form-group">
+    <label>{{ t("field.body") }}</label>
+    <textarea name="body" class="form-control" rows="12" placeholder="Ticket body / steps to reproduce / acceptance criteria…">{{ template.body if template else '' }}</textarea>
+    <p class="field-hint">{{ t("field.hint.ticket_body") }}</p>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">{{ t("action.save") if template else t("action.create") }}</button>
+    <a href="/ticket-templates" class="btn">{{ t("action.cancel") }}</a>
+  </div>
+</form>
+{% endblock %}

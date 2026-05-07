@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="page-header">
+  <h1>{{ t("nav.operations") }}</h1>
+  <p class="field-hint">{{ t("label.ops_hint") }}</p>
+</div>
+
+{% if result %}
+<div class="alert alert-success" style="margin-bottom:1rem">{{ result }}</div>
+{% endif %}
+{% if errors %}
+<div class="alert alert-error" style="margin-bottom:1rem">{{ errors }}</div>
+{% endif %}
+
+{% if not configured %}
+<p class="empty-state">{{ t("msg.ops_min_repos") }}</p>
+{% else %}
+
+<form method="post" action="/operations/execute" id="ops-form">
+
+  <!-- ── Source + Content Type ── -->
+  <div class="settings-group" style="padding:1rem; margin-bottom:1rem">
+    <div class="form-row" style="align-items:flex-end">
+      <div class="form-group">
+        <label>{{ t("field.source_repo") }}</label>
+        <select name="src_repo" class="form-control" id="src-select"
+                onchange="this.form.action='/operations/execute'; window.location='/operations?src='+this.value+'&type={{ content_type }}'">
+          <option value="">— {{ t("action.select") }} —</option>
+          {% for r in repos %}
+          <option value="{{ r.id }}" {% if r.id == src %}selected{% endif %}>{{ r.name or r.id }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>{{ t("field.content_type") }}</label>
+        <div style="display:flex; gap:0.5rem; flex-wrap:wrap">
+          {% for ctype, icon in [('appointments','calendar-days'), ('knowledge','book-open'), ('links','link-2'), ('mail_templates','mail'), ('memes','smile'), ('motd','message-square'), ('notes','file-text'), ('potd','image'), ('rss','rss'), ('runbooks','list-checks'), ('snippets','code-2'), ('tasks','check-square-2'), ('ticket_templates','ticket'), ('vacations','palmtree')] %}
+          <a href="/operations?src={{ src }}&type={{ ctype }}"
+             class="btn btn-sm {% if content_type == ctype %}btn-primary{% else %}btn-secondary{% endif %}">
+            <i data-lucide="{{ icon }}" class="icon-xs"></i> {{ t("nav." ~ ctype) }}
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if src %}
+  <!-- ── Item Selection ── -->
+  <div class="settings-group" style="padding:1rem; margin-bottom:1rem">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem">
+      <h3 style="margin:0">{{ t("label.select_items") }}</h3>
+      <div style="display:flex; gap:0.5rem">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="selectAll(true)">{{ t("action.select_all") }}</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="selectAll(false)">{{ t("action.deselect_all") }}</button>
+      </div>
+    </div>
+
+    {% if not items %}
+    <p class="field-hint">{{ t("empty.ops_items") }}</p>
+    {% elif content_type == 'knowledge' %}
+      {% for group in items %}
+      <div style="margin-bottom:1rem">
+        <label style="display:flex; align-items:center; gap:0.5rem; font-weight:600; margin-bottom:0.4rem; cursor:pointer">
+          <input type="checkbox" class="cat-cb" data-cat="{{ group.category }}"
+                 onchange="toggleCategory('{{ group.category }}', this.checked)"
+                 style="accent-color:var(--accent);width:1rem;height:1rem" checked>
+          📁 {{ group.category }} <span class="hint">({{ group.entries|length }})</span>
+        </label>
+        <div style="padding-left:1.5rem">
+          {% for e in group.entries %}
+          <label style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.2rem; cursor:pointer">
+            <input type="checkbox" name="items" value="{{ e.category }}/{{ e.slug }}"
+                   class="item-cb cat-{{ group.category | replace(' ', '_') }}"
+                   style="accent-color:var(--accent);width:1rem;height:1rem" checked>
+            <span>{{ e.title }}</span>
+            {% if e.get('pinned') %}<i data-lucide="pin" class="icon-xs"></i>{% endif %}
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+
+    {% elif content_type == 'tasks' %}
+      {% for task in items %}
+      <label style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.4rem; cursor:pointer">
+        <input type="checkbox" name="items" value="{{ task.id }}"
+               style="accent-color:var(--accent);width:1rem;height:1rem" checked>
+        <span {% if task.done %}style="text-decoration:line-through; opacity:0.6"{% endif %}>
+          {{ task.title }}
+          {% if task.due_date %}<span class="hint">· {{ task.due_date }}</span>{% endif %}
+          {% if task.priority == 'high' %}<span class="hint" style="color:var(--danger)">⬆ {{ t("priority.high") }}</span>{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+
+    {% elif content_type == 'vacations' %}
+      {% for e in items %}
+      <label style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.4rem; cursor:pointer">
+        <input type="checkbox" name="items" value="{{ e.id }}"
+               style="accent-color:var(--accent);width:1rem;height:1rem" checked>
+        <span>{{ e.start_date }} – {{ e.end_date }}
+          <span class="hint">· {{ e.status }}</span>
+          {% if e.note %}<span class="hint">· {{ e.note[:40] }}{% if e.note|length > 40 %}…{% endif %}</span>{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+
+    {% elif content_type == 'mail_templates' %}
+      {% for tmpl in items %}
+      <label style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.4rem; cursor:pointer">
+        <input type="checkbox" name="items" value="{{ tmpl.id }}"
+               style="accent-color:var(--accent);width:1rem;height:1rem" checked>
+        <span><i data-lucide="mail" class="icon-xs"></i> {{ tmpl.name }}
+          {% if tmpl.subject %}<span class="hint">· {{ tmpl.subject[:50] }}{% if tmpl.subject|length > 50 %}…{% endif %}</span>{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+
+    {% elif content_type == 'ticket_templates' %}
+      {% for tmpl in items %}
+      <label style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.4rem; cursor:pointer">
+        <input type="checkbox" name="items" value="{{ tmpl.id }}"
+               style="accent-color:var(--accent);width:1rem;height:1rem" checked>
+        <span><i data-lucide="ticket" class="icon-xs"></i> {{ tmpl.name }}
+          {% if tmpl.description %}<span class="hint">· {{ tmpl.description[:50] }}{% if tmpl.description|length > 50 %}…{% endif %}</span>{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+
+    {% elif content_type == 'notes' %}
+      {% for n in items %}
+      <label style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.4rem; cursor:pointer">
+        <input type="checkbox" name="items" value="{{ n.id }}"
+               style="accent-color:var(--accent);width:1rem;height:1rem" checked>
+        <span><i data-lucide="file-text" class="icon-xs"></i> {{ n.subject or t("label.no_subject") }}
+          {% if n.body %}<span class="hint">· {{ n.body[:60] }}{% if n.body|length > 60 %}…{% endif %}</span>{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+
+    {% elif content_type == 'links' %}
+      {% for l in items %}
+      <label style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.4rem; cursor:pointer">
+        <input type="checkbox" name="items" value="{{ l.id }}"
+               style="accent-color:var(--accent);width:1rem;height:1rem" checked>
+        <span><i data-lucide="link-2" class="icon-xs"></i> {{ l.title }}
+          {% if l.category %}<span class="hint">· {{ l.category }}</span>{% endif %}
+          {% if l.url %}<span class="hint">· {{ l.url[:50] }}{% if l.url|length > 50 %}…{% endif %}</span>{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+
+    {% elif content_type == 'runbooks' %}
+      {% for rb in items %}
+      <label style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.4rem; cursor:pointer">
+        <input type="checkbox" name="items" value="{{ rb.id }}"
+               style="accent-color:var(--accent);width:1rem;height:1rem" checked>
+        <span><i data-lucide="list-checks" class="icon-xs"></i> {{ rb.title }}
+          {% if rb.steps %}<span class="hint">· {{ rb.steps | length }} {{ t("label.step_s") }}</span>{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+
+    {% elif content_type == 'snippets' %}
+      {% for sn in items %}
+      <label style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.4rem; cursor:pointer">
+        <input type="checkbox" name="items" value="{{ sn.id }}"
+               style="accent-color:var(--accent);width:1rem;height:1rem" checked>
+        <span><i data-lucide="code-2" class="icon-xs"></i> {{ sn.title }}
+          {% if sn.steps %}<span class="hint">· {{ sn.steps | length }} {{ t("label.step_s") }}</span>{% endif %}
+          {% if sn.description %}<span class="hint">· {{ sn.description[:50] }}{% if sn.description|length > 50 %}…{% endif %}</span>{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+
+    {% elif content_type == 'appointments' %}
+      {% for a in items %}
+      <label style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.4rem; cursor:pointer">
+        <input type="checkbox" name="items" value="{{ a.id }}"
+               style="accent-color:var(--accent);width:1rem;height:1rem" checked>
+        <span><i data-lucide="calendar-days" class="icon-xs"></i> {{ a.title }}
+          <span class="hint">· {{ a.start_date }}{% if a.end_date and a.end_date != a.start_date %} – {{ a.end_date }}{% endif %}</span>
+          {% if a.type %}<span class="hint">· {{ a.type }}</span>{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+    {% elif content_type == 'motd' %}
+      {% for m in items %}
+      <label style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.4rem; cursor:pointer">
+        <input type="checkbox" name="items" value="{{ m.id }}"
+               style="accent-color:var(--accent);width:1rem;height:1rem" checked>
+        <span><i data-lucide="message-square" class="icon-xs"></i> {{ m.text[:80] }}{% if m.text|length > 80 %}…{% endif %}
+          {% if not m.get('active', true) %}<span class="hint">· {{ t("label.inactive") }}</span>{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+    {% elif content_type == 'rss' %}
+      {% for f in items %}
+      <label style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.4rem; cursor:pointer">
+        <input type="checkbox" name="items" value="{{ f.id }}"
+               style="accent-color:var(--accent);width:1rem;height:1rem" checked>
+        <span><i data-lucide="rss" class="icon-xs"></i> {{ f.name }}
+          <span class="hint">· {{ f.url }}</span>
+          {% if not f.get('enabled', true) %}<span class="hint">· {{ t("label.disabled") }}</span>{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+    {% elif content_type == 'potd' %}
+      {% for e in items %}
+      <label style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.4rem; cursor:pointer">
+        <input type="checkbox" name="items" value="{{ e.id }}"
+               style="accent-color:var(--accent);width:1rem;height:1rem" checked>
+        <span><i data-lucide="image" class="icon-xs"></i> {{ e.id }}.{{ e.ext }}
+          {% if e.page %}<span class="hint">· page {{ e.page }}</span>{% endif %}
+        </span>
+      </label>
+      {% endfor %}
+    {% elif content_type == 'memes' %}
+      {% for e in items %}
+      <label style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.4rem; cursor:pointer">
+        <input type="checkbox" name="items" value="{{ e.id }}"
+               style="accent-color:var(--accent);width:1rem;height:1rem" checked>
+        <span><i data-lucide="smile" class="icon-xs"></i> {{ e.id }}.{{ e.ext }}</span>
+      </label>
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- ── Target + Action ── -->
+  <div class="settings-group" style="padding:1rem">
+    <div class="form-row" style="align-items:flex-end; flex-wrap:wrap; gap:1rem">
+      <div class="form-group">
+        <label>{{ t("field.target_repo") }}</label>
+        <select name="dst_repo" class="form-control">
+          {% for r in repos %}
+          {% if r.id != src %}
+          <option value="{{ r.id }}">{{ r.name or r.id }}</option>
+          {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>{{ t("field.action") }}</label>
+        <div style="display:flex; gap:1rem; padding-top:0.4rem">
+          <label class="radio-option" style="gap:0.5rem">
+            <input type="radio" name="action" value="copy" checked style="accent-color:var(--accent)">
+            <span>{{ t("action.copy") }}</span>
+          </label>
+          <label class="radio-option" style="gap:0.5rem">
+            <input type="radio" name="action" value="move" style="accent-color:var(--accent)">
+            <span>{{ t("action.move") }}</span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <input type="hidden" name="content_type" value="{{ content_type }}">
+    <div class="form-actions" style="margin-top:1rem">
+      <button type="submit" class="btn btn-primary"
+              onclick="return confirm('{{ t("confirm.ops_execute") }}')">
+        {{ t("action.execute") }}
+      </button>
+    </div>
+  </div>
+  {% else %}
+  <p class="field-hint" style="padding:0.5rem 0">{{ t("label.select_source_repo") }}</p>
+  {% endif %}
+
+</form>
+{% endif %}
+
+<script>
+function selectAll(checked) {
+  document.querySelectorAll('input[name="items"]').forEach(cb => cb.checked = checked);
+  document.querySelectorAll('.cat-cb').forEach(cb => cb.checked = checked);
+}
+
+function toggleCategory(cat, checked) {
+  const cls = 'cat-' + cat.replace(/ /g, '_');
+  document.querySelectorAll('.' + cls).forEach(cb => cb.checked = checked);
+}
+</script>
+
+<hr style="margin:2rem 0;border-color:var(--border)">
+
+<h2 style="margin-bottom:1rem"><i data-lucide="archive" class="icon-sm"></i> {{ t("label.export_import") }}</h2>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;align-items:start">
+
+  <!-- Export -->
+  <div class="card" style="padding:1.25rem">
+    <h3 style="margin:0 0 0.75rem"><i data-lucide="download" class="icon-xs"></i> {{ t("label.export") }}</h3>
+    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem">
+      {{ t("label.ops_export_desc") }}
+    </p>
+    <form method="get" action="/operations/export">
+      <div class="form-group" style="margin-bottom:0.75rem">
+        <label>{{ t("field.repo") }}</label>
+        <select name="repo_id" class="form-control" required>
+          <option value="">— {{ t("action.select") }} —</option>
+          {% for r in repos %}
+          <option value="{{ r.id }}">{{ r.name or r.id }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-secondary">
+        <i data-lucide="download" class="icon-xs"></i> {{ t("action.download_zip") }}
+      </button>
+    </form>
+  </div>
+
+  <!-- Import -->
+  <div class="card" style="padding:1.25rem">
+    <h3 style="margin:0 0 0.75rem"><i data-lucide="upload" class="icon-xs"></i> {{ t("label.import_section") }}</h3>
+    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem">
+      {{ t("label.ops_import_desc") }}
+    </p>
+    <form method="post" action="/operations/import" enctype="multipart/form-data">
+      <div class="form-group" style="margin-bottom:0.75rem">
+        <label>{{ t("field.repo") }}</label>
+        <select name="repo_id" class="form-control" required>
+          <option value="">— {{ t("action.select") }} —</option>
+          {% for r in repos %}
+          {% if r.get('permissions', {}).get('write') %}
+          <option value="{{ r.id }}">{{ r.name or r.id }}</option>
+          {% endif %}
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem">
+        <label>{{ t("field.mode") }}</label>
+        <div style="display:flex;gap:1rem;padding-top:0.3rem">
+          <label class="radio-option" style="gap:0.5rem">
+            <input type="radio" name="mode" value="merge" checked style="accent-color:var(--accent)">
+            <span>{{ t("label.merge") }} <span style="font-size:0.78rem;color:var(--text-muted)">{{ t("label.merge_hint") }}</span></span>
+          </label>
+          <label class="radio-option" style="gap:0.5rem">
+            <input type="radio" name="mode" value="overwrite" style="accent-color:var(--accent)">
+            <span>{{ t("label.overwrite") }} <span style="font-size:0.78rem;color:var(--text-muted)">{{ t("label.overwrite_hint") }}</span></span>
+          </label>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:0.75rem">
+        <label>{{ t("field.zip_file") }}</label>
+        <input type="file" name="file" accept=".zip" class="form-control" required>
+      </div>
+      <button type="submit" class="btn btn-primary"
+              onclick="return confirm('{{ t("confirm.ops_import") }}')">
+        <i data-lucide="upload" class="icon-xs"></i> {{ t("action.import") }}
+      </button>
+    </form>
+  </div>
+
+</div>
+{% endblock %}

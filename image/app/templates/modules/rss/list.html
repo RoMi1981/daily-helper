@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}RSS Reader – Daily Helper{% endblock %}
+
+{% if all_feeds %}
+{% block sticky_nav %}
+<style>
+  .rss-subnav {
+    position: sticky;
+    top: 56px;
+    z-index: 99;
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 0.15rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.5rem 0.75rem;
+  }
+  .rss-subnav::-webkit-scrollbar { display: none; }
+  .rss-subnav a {
+    white-space: nowrap;
+    padding: 0.3rem 0.7rem;
+    border-radius: 4px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+  .rss-subnav a:hover { background: var(--bg-sidebar); color: var(--text); }
+  .rss-subnav a.active { background: var(--accent); color: #fff; }
+  .rss-subnav a.active svg { color: #fff; }
+</style>
+<nav class="rss-subnav" aria-label="RSS feeds">
+  {% for feed in all_feeds %}
+  <a href="/rss/{{ feed.id }}"
+     class="{% if current_feed and feed.id == current_feed.id %}active{% endif %}">
+    {% if feed.get('default') %}<i data-lucide="star" class="icon-xs"></i>{% endif %}
+    {{ feed.name }}
+    {% if not feed.get('enabled', true) %}<span style="opacity:.6">{{ t("label.disabled") }}</span>{% endif %}
+  </a>
+  {% endfor %}
+</nav>
+{% endblock %}
+{% endif %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="rss" class="icon-sm"></i> {{ t("nav.rss") }}</h1>
+  <div style="display:flex;gap:0.5rem;align-items:center">
+    {% if has_storage %}
+    <button class="btn btn-sm btn-primary" onclick="toggleAddForm()">
+      <i data-lucide="plus" class="icon-xs"></i> {{ t("action.add_feed") }}
+    </button>
+    {% endif %}
+    <a href="/help/rss" class="btn btn-sm" title="Help"><i data-lucide="help-circle" class="icon-xs"></i></a>
+  </div>
+</div>
+
+{% if has_storage %}
+<div id="add-feed-form" style="display:none;margin-bottom:1.5rem">
+  <div class="card" style="padding:1rem">
+    <h3 style="margin:0 0 0.75rem">{{ t("label.new_feed") }}</h3>
+    <form method="post" action="/rss/feeds/new" class="entry-form" style="margin:0">
+      <div class="form-group">
+        <label>{{ t("field.name_required") }}</label>
+        <input type="text" name="name" class="form-control" required placeholder="Heise Online, The Verge…" autofocus>
+      </div>
+      <div class="form-group">
+        <label>{{ t("field.url_required") }}</label>
+        <input type="url" name="url" class="form-control" required placeholder="https://www.heise.de/rss/heise-atom.xml">
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
+          <input type="checkbox" name="enabled" value="on" checked> {{ t("label.enabled") }}
+        </label>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{ t("action.add") }}</button>
+        <button type="button" class="btn" onclick="toggleAddForm()">{{ t("action.cancel") }}</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+{% if not current_feed %}
+<div class="alert alert-warning">
+  {% if not has_storage %}
+  No repository configured for RSS. Assign one in <a href="/settings#module-repos">Settings → Module Repos</a>.
+  {% else %}
+  {{ t("empty.rss_no_feeds") }}
+  {% endif %}
+</div>
+
+{% else %}
+
+{# Feed header with actions #}
+<div class="card" style="padding:0;overflow:hidden;margin-bottom:1.5rem">
+  <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap">
+    <i data-lucide="rss" class="icon-xs"
+       style="color:{% if current_feed.get('enabled', true) %}var(--accent){% else %}var(--text-muted){% endif %};flex-shrink:0"></i>
+    <span style="font-weight:600;font-size:0.95rem;flex:1">
+      {{ current_feed.name }}
+      {% if not current_feed.get('enabled', true) %}
+      <span style="font-size:0.72rem;color:var(--text-muted);font-weight:400;margin-left:0.4rem">(disabled)</span>
+      {% endif %}
+    </span>
+
+    {# Set default button #}
+    {% if has_storage %}
+    <form method="post" action="/rss/feeds/{{ current_feed.id }}/set-default" style="margin:0">
+      <button type="submit" class="btn btn-sm"
+              title="{% if current_feed.get('default') %}Default feed{% else %}Set as default{% endif %}"
+              style="{% if current_feed.get('default') %}color:var(--accent){% endif %}">
+        <i data-lucide="star" class="icon-xs"></i>
+      </button>
+    </form>
+    {% endif %}
+
+    <a href="{{ current_feed.url }}" target="_blank" rel="noopener" class="btn btn-sm" title="Open feed URL">
+      <i data-lucide="external-link" class="icon-xs"></i>
+    </a>
+    {% if current_feed.get('enabled', true) %}
+    <button class="btn btn-sm" title="{{ t('action.refresh') }}"
+            hx-post="/rss/feed/{{ current_feed.id }}/refresh"
+            hx-target="#feed-content"
+            hx-swap="innerHTML"
+            hx-indicator="#refresh-spinner">
+      <i data-lucide="refresh-cw" class="icon-xs"></i>
+      <span id="refresh-spinner" class="htmx-indicator" style="font-size:0.75rem;margin-left:0.25rem">…</span>
+    </button>
+    {% endif %}
+    {% if has_storage %}
+    <button class="btn btn-sm" onclick="toggleFeedEdit()">{{ t("action.edit") }}</button>
+    <form method="post" action="/rss/feeds/{{ current_feed.id }}/delete" style="margin:0"
+          onsubmit="return confirm('Delete feed \'{{ current_feed.name }}\'?')">
+      <button type="submit" class="btn btn-danger btn-sm">{{ t("action.delete") }}</button>
+    </form>
+    {% endif %}
+  </div>
+
+  {# Inline edit form #}
+  <div id="feed-edit-form" style="display:none;padding:0.75rem 1rem;border-bottom:1px solid var(--border)">
+    <form method="post" action="/rss/feeds/{{ current_feed.id }}/edit" class="entry-form" style="margin:0">
+      <div class="form-group">
+        <label>{{ t("field.name_required") }}</label>
+        <input type="text" name="name" class="form-control" value="{{ current_feed.name }}" required>
+      </div>
+      <div class="form-group">
+        <label>{{ t("field.url_required") }}</label>
+        <input type="url" name="url" class="form-control" value="{{ current_feed.url }}" required>
+      </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
+          <input type="checkbox" name="enabled" value="on" {% if current_feed.get('enabled', true) %}checked{% endif %}> {{ t("label.enabled") }}
+        </label>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+        <button type="button" class="btn" onclick="toggleFeedEdit()">{{ t("action.cancel") }}</button>
+      </div>
+    </form>
+  </div>
+
+  {# Feed content loaded via HTMX #}
+  {% if current_feed.get('enabled', true) %}
+  <div id="feed-content"
+       hx-get="/rss/feed/{{ current_feed.id }}"
+       hx-trigger="load"
+       hx-swap="innerHTML"
+       style="padding:0.75rem 1rem;min-height:3rem">
+    <span style="color:var(--text-muted);font-size:0.85rem">{{ t("msg.loading") }}</span>
+  </div>
+  {% else %}
+  <div style="padding:0.75rem 1rem;color:var(--text-muted);font-size:0.85rem">{{ t("label.feed_disabled") }}</div>
+  {% endif %}
+</div>
+
+{% endif %}
+
+<script>
+function toggleAddForm() {
+  var el = document.getElementById('add-feed-form');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+function toggleFeedEdit() {
+  var el = document.getElementById('feed-edit-form');
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+</script>
+{% endblock %}

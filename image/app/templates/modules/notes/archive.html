@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Notes Archive – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="archive" class="icon-sm"></i> {{ t("label.notes_archive") }}</h1>
+  <a href="/notes" class="btn btn-sm">{{ t("label.active_notes") }}</a>
+</div>
+
+{% if not configured %}
+<div class="alert alert-warning">
+  {{ t("msg.no_repo") | safe }}
+</div>
+{% else %}
+
+<form method="get" action="/notes/archive" style="margin-bottom:1.25rem;display:flex;gap:0.5rem">
+  <input type="text" name="q" id="search-input" class="form-control" value="{{ q }}"
+         placeholder="Search archive…" autocomplete="off" style="flex:1">
+  <button type="submit" class="btn">{{ t("action.search") }}</button>
+  {% if q %}<a href="/notes/archive" class="btn">Clear</a>{% endif %}
+</form>
+
+{% if not notes %}
+<div class="alert alert-info">
+  {% if q %}{{ t("empty.notes_archive_search", q=q) }}{% else %}{{ t("empty.notes_archive") }}{% endif %}
+</div>
+{% else %}
+
+<div style="display:flex;flex-direction:column;gap:0.75rem">
+{% for n in notes %}
+<div class="card" style="padding:0.9rem 1.1rem;display:flex;align-items:center;justify-content:space-between;gap:1rem">
+  <div style="min-width:0">
+    <div style="font-weight:600;font-size:1rem;margin-bottom:0.25rem">{{ n.subject or '(no subject)' }}</div>
+    <div style="font-size:0.8rem;color:var(--text-muted);display:flex;gap:1rem">
+      <span>Updated {{ n.updated or n.created }}</span>
+      {% if n.body %}
+      <span>{{ n.body | truncate(80, true, '…') }}</span>
+      {% endif %}
+    </div>
+  </div>
+  <form method="post" action="/notes/archive/{{ n.id }}/restore" style="margin:0;flex-shrink:0">
+    <button type="submit" class="btn btn-sm">{{ t("action.restore") }}</button>
+  </form>
+</div>
+{% endfor %}
+</div>
+
+{% endif %}
+{% endif %}
+{% endblock %}

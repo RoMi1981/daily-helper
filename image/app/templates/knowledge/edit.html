@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Edit: {{ entry.title }} – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="form-section">
+  <h1>{{ t("label.edit_entry") }}</h1>
+  {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+  <form action="/knowledge/entries/{{ entry.repo_id }}/{{ entry.category }}/{{ entry.slug }}/edit"
+        method="post" class="entry-form">
+
+    <div class="form-group">
+      <label>{{ t("field.category") }}</label>
+      <input type="text" class="form-control" value="{{ entry.category }}" disabled>
+    </div>
+
+    <div class="form-group">
+      <label for="title">{{ t("field.title_required") }}</label>
+      <input type="text" name="title" id="title" required
+             class="form-control" value="{{ entry.title }}">
+      <p class="field-hint">Changing the title renames the file and redirects existing links automatically.</p>
+    </div>
+
+    <div class="form-group">
+      <label for="content">{{ t("field.content") }} <span class="hint">(Markdown)</span></label>
+      <div class="editor-container">
+        <div class="editor-tabs">
+          <button type="button" class="tab-btn active" onclick="switchTab('edit', this)">{{ t("tab.edit") }}</button>
+          <button type="button" class="tab-btn" onclick="switchTab('preview', this)">{{ t("tab.preview") }}</button>
+        </div>
+
+        <div class="toolbar">
+          <div class="toolbar-group">
+            <button type="button" class="tb-btn" onclick="insert('# ', '', this)" title="Heading 1">H1</button>
+            <button type="button" class="tb-btn" onclick="insert('## ', '', this)" title="Heading 2">H2</button>
+            <button type="button" class="tb-btn" onclick="insert('### ', '', this)" title="Heading 3">H3</button>
+          </div>
+          <div class="toolbar-sep"></div>
+          <div class="toolbar-group">
+            <button type="button" class="tb-btn tb-bold" onclick="wrap('**', '**', this)" title="Bold">B</button>
+            <button type="button" class="tb-btn tb-italic" onclick="wrap('*', '*', this)" title="Italic">I</button>
+            <button type="button" class="tb-btn tb-strike" onclick="wrap('~~', '~~', this)" title="Strikethrough">S</button>
+          </div>
+          <div class="toolbar-sep"></div>
+          <div class="toolbar-group">
+            <button type="button" class="tb-btn" onclick="wrap('`', '`', this)" title="Inline Code">`c`</button>
+            <button type="button" class="tb-btn" onclick="insertCodeBlock(this)" title="Code Block">{ }</button>
+          </div>
+          <div class="toolbar-sep"></div>
+          <div class="toolbar-group">
+            <button type="button" class="tb-btn" onclick="insertLine('- ', this)" title="List">• —</button>
+            <button type="button" class="tb-btn" onclick="insertLine('1. ', this)" title="Numbered list">1. —</button>
+            <button type="button" class="tb-btn" onclick="insertLine('- [ ] ', this)" title="Checkbox list">☐ —</button>
+          </div>
+          <div class="toolbar-sep"></div>
+          <div class="toolbar-group">
+            <button type="button" class="tb-btn" onclick="insertLine('> ', this)" title="Blockquote">"</button>
+            <button type="button" class="tb-btn" onclick="insertBlock('\n---\n', this)" title="Horizontal rule">—</button>
+            <button type="button" class="tb-btn" onclick="insertTable(this)" title="Table">⊞</button>
+            <button type="button" class="tb-btn" onclick="insertLink(this)" title="Link">🔗</button>
+          </div>
+        </div>
+
+        <textarea name="content" id="content" required class="form-control editor"
+                  oninput="schedulePreview(this)">{{ entry.content }}</textarea>
+        <div class="preview-pane" style="display:none"></div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <a href="/knowledge/entries/{{ entry.repo_id }}/{{ entry.category }}/{{ entry.slug }}"
+         class="btn btn-secondary">{{ t("action.cancel") }}</a>
+      <button type="submit" class="btn btn-primary">{{ t("action.save_push") }}</button>
+    </div>
+  </form>
+</div>
+
+<script src="/static/editor.js"></script>
+{% endblock %}

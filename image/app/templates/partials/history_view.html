@@ -1,0 +1,31 @@
+{# Shared history partial — include with:
+   title, back_url, commits, diff, selected_sha
+#}
+{% if not commits %}
+<p class="empty-state">{{ t("empty.history") }}</p>
+{% else %}
+<div style="display:flex;flex-direction:column;gap:0.5rem">
+{% for c in commits %}
+<div class="history-commit {% if selected_sha == c.sha %}history-commit-selected{% endif %}">
+  <div class="history-commit-header">
+    <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap">
+      <code class="history-sha">{{ c.sha[:8] }}</code>
+      <span class="history-date">{{ c.date.strftime('%d.%m.%Y %H:%M') }}</span>
+      <span class="history-author"><i data-lucide="user" class="icon-xs"></i> {{ c.author }}</span>
+      <span class="history-message">{{ c.message }}</span>
+    </div>
+    <a href="?sha={{ c.sha }}" class="btn btn-sm {% if selected_sha == c.sha %}btn-secondary{% endif %}"
+       style="white-space:nowrap">
+      {% if selected_sha == c.sha %}Hide diff{% else %}Show diff{% endif %}
+    </a>
+  </div>
+  {% if selected_sha == c.sha and diff %}
+  <div class="history-diff">
+    <pre class="diff-view">{% for line in diff.splitlines() %}<span class="{% if line.startswith('+') and not line.startswith('+++') %}diff-add{% elif line.startswith('-') and not line.startswith('---') %}diff-del{% elif line.startswith('@@') %}diff-hunk{% endif %}">{{ line | e }}
+</span>{% endfor %}</pre>
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+</div>
+{% endif %}

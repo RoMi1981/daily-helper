@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}{{ runbook.title }} – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 style="font-size:1.3rem;margin:0"><i data-lucide="list-checks" class="icon-sm"></i> {{ runbook.title }}</h1>
+  <div style="display:flex;gap:0.5rem;align-items:center">
+    <button class="btn btn-sm" onclick="resetAll()" title="Reset all checkboxes">↺ Reset</button>
+    <a href="/runbooks/{{ runbook.id }}/edit" class="btn btn-sm">{{ t("action.edit") }}</a>
+    <a href="/runbooks/{{ runbook.id }}/history" class="btn btn-sm"><i data-lucide="history" class="icon-xs"></i> History</a>
+    <form method="post" action="/runbooks/{{ runbook.id }}/delete" style="margin:0"
+          onsubmit="return confirm('{{ t('confirm.delete_runbook') }}')">
+      <button type="submit" class="btn btn-danger btn-sm">{{ t("action.delete") }}</button>
+    </form>
+    <a href="/runbooks" class="btn btn-sm">← Back</a>
+  </div>
+</div>
+
+{% if runbook.description %}
+<p style="color:var(--text-muted);margin:0.5rem 0 1rem">{{ runbook.description }}</p>
+{% endif %}
+
+<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1rem">
+  Created {{ runbook.created }}{% if runbook.updated and runbook.updated != runbook.created %} · Updated {{ runbook.updated }}{% endif %}
+</div>
+
+{% if runbook.steps %}
+<!-- Progress bar -->
+<div style="margin-bottom:1.5rem">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.35rem">
+    <span style="font-size:0.85rem;font-weight:600">{{ t("label.progress") }}</span>
+    <span id="progress-label" style="font-size:0.85rem;color:var(--text-muted)">0 / {{ runbook.steps | length }}</span>
+  </div>
+  <div style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;height:10px;overflow:hidden">
+    <div id="progress-bar" style="height:100%;background:var(--accent);width:0%;transition:width 0.25s;border-radius:6px"></div>
+  </div>
+</div>
+
+<!-- Steps -->
+<div style="display:flex;flex-direction:column;gap:0.75rem" id="steps-list">
+{% for step in runbook.steps %}
+<div class="card step-card" id="step-{{ loop.index0 }}"
+     style="padding:0.9rem 1.1rem;transition:opacity 0.2s,border-color 0.2s">
+  <label style="display:flex;gap:0.75rem;cursor:pointer;align-items:flex-start">
+    <input type="checkbox" class="step-check" data-idx="{{ loop.index0 }}"
+           style="margin-top:0.2rem;width:1.1rem;height:1.1rem;flex-shrink:0;cursor:pointer"
+           onchange="onCheck(this)">
+    <div style="flex:1">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:0.5rem">
+        <div class="step-title" style="font-weight:600;font-size:1rem">{{ step.title }}</div>
+        {% if step.body %}
+        <button type="button" class="btn btn-sm copy-step-btn"
+                data-body="{{ step.body | e }}"
+                onclick="event.preventDefault();copyStep(this)" title="Copy to clipboard"
+                style="flex-shrink:0;font-size:0.75rem;padding:0.15rem 0.5rem"><i data-lucide="clipboard" class="icon-xs"></i></button>
+        {% endif %}
+      </div>
+      {% if step.body %}
+      <div class="step-body" style="font-size:0.9rem;color:var(--text-muted);margin-top:0.4rem;white-space:pre-wrap;word-break:break-word;font-family:monospace">{{ step.body }}</div>
+      {% endif %}
+    </div>
+  </label>
+</div>
+{% endfor %}
+</div>
+
+{% else %}
+<div class="alert alert-info">This runbook has no steps yet. <a href="/runbooks/{{ runbook.id }}/edit">Add some.</a></div>
+{% endif %}
+
+<script>
+(function() {
+  var TOTAL = {{ runbook.steps | length }};
+  var KEY = 'rb_{{ runbook.id }}';
+
+  function saveState() {
+    var state = {};
+    document.querySelectorAll('.step-check').forEach(function(cb) {
+      state[cb.dataset.idx] = cb.checked;
+    });
+    sessionStorage.setItem(KEY, JSON.stringify(state));
+    updateProgress();
+  }
+
+  function loadState() {
+    try {
+      var state = JSON.parse(sessionStorage.getItem(KEY) || '{}');
+      document.querySelectorAll('.step-check').forEach(function(cb) {
+        if (state[cb.dataset.idx]) {
+          cb.checked = true;
+          markDone(cb, true);
+        }
+      });
+    } catch(e) {}
+    updateProgress();
+  }
+
+  function markDone(cb, done) {
+    var card = cb.closest('.step-card');
+    if (done) {
+      card.style.opacity = '0.55';
+      card.style.borderColor = 'var(--accent)';
+      card.querySelector('.step-title').style.textDecoration = 'line-through';
+    } else {
+      card.style.opacity = '';
+      card.style.borderColor = '';
+      card.querySelector('.step-title').style.textDecoration = '';
+    }
+  }
+
+  function updateProgress() {
+    var done = document.querySelectorAll('.step-check:checked').length;
+    var pct = TOTAL ? (done / TOTAL * 100) : 0;
+    document.getElementById('progress-bar').style.width = pct + '%';
+    document.getElementById('progress-label').textContent = done + ' / ' + TOTAL;
+  }
+
+  window.onCheck = function(cb) {
+    markDone(cb, cb.checked);
+    saveState();
+  };
+
+  window.copyStep = function(btn) {
+    var text = btn.dataset.body;
+    copyText(text).then(function() {
+      var orig = btn.textContent;
+      btn.textContent = '✓';
+      setTimeout(function() { btn.textContent = orig; }, 1500);
+    });
+  };
+
+  window.resetAll = function() {
+    sessionStorage.removeItem(KEY);
+    document.querySelectorAll('.step-check').forEach(function(cb) {
+      cb.checked = false;
+      markDone(cb, false);
+    });
+    updateProgress();
+  };
+
+  loadState();
+})();
+</script>
+{% endblock %}

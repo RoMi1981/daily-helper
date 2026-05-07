@@ -1,0 +1,50 @@
+<div id="task-{{ task.id }}" class="task-card {% if task.done %}task-done{% endif %} {% if task.due_date and task.due_date < today and not task.done %}task-overdue{% endif %}">
+  <div class="task-main">
+    <label class="task-check">
+      <input type="checkbox"
+             hx-post="/tasks/{{ task.id }}/toggle"
+             hx-target="#task-{{ task.id }}"
+             hx-swap="outerHTML"
+             {% if task.done %}checked{% endif %}>
+    </label>
+    <div class="task-body">
+      <span class="task-title {% if task.done %}task-title-done{% endif %}">{{ task.title }}</span>
+      <div class="task-meta">
+        {% if task.due_date %}
+          <span class="task-due {% if task.due_date < today and not task.done %}task-due-overdue{% endif %}">
+            <i data-lucide="calendar" class="icon-xs"></i> {{ task.due_date }}
+          </span>
+        {% endif %}
+        {% if task.priority and task.priority != "medium" %}
+          <span class="task-priority task-priority-{{ task.priority }}">
+            {% if task.priority == "high" %}<i data-lucide="alert-circle" class="icon-xs" style="color:var(--danger)"></i>{% elif task.priority == "low" %}<i data-lucide="circle-dot" class="icon-xs" style="color:var(--success,#22c55e)"></i>{% endif %}
+            {{ t("priority." + task.priority) }}
+          </span>
+        {% endif %}
+        {% if task.recurring and task.recurring != "none" %}
+          <span class="task-recurring"><i data-lucide="repeat" class="icon-xs"></i> {{ t("recurring." + task.recurring) }}</span>
+        {% endif %}
+        {% if blocked_by_open is defined and task.id in blocked_by_open %}
+          <span class="task-blocked" title="{{ t('field.blocked_by') }}: {{ blocked_by_open[task.id]|length }}">
+            <i data-lucide="lock" class="icon-xs"></i> {{ t('field.blocked_by') }} ({{ blocked_by_open[task.id]|length }})
+          </span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="task-actions">
+      <button type="button" class="btn btn-sm fav-btn {% if task.id in favorite_ids %}fav-active{% endif %}" title="{% if task.id in favorite_ids %}Remove from favorites{% else %}Add to favorites{% endif %}"
+              hx-post="/api/favorites/toggle" hx-target="this" hx-swap="outerHTML"
+              hx-vals='{"module":"tasks","entry_id":"{{ task.id }}","title":"{{ task.title | e }}","url":"/tasks/{{ task.id }}/edit"}'>
+        <i data-lucide="star" class="icon-xs"></i>
+      </button>
+      <a href="/tasks/{{ task.id }}/edit" class="btn btn-secondary btn-sm"><i data-lucide="pencil" class="icon-xs"></i></a>
+      <form method="post" action="/tasks/{{ task.id }}/delete" style="display:inline"
+            onsubmit="return confirm('{{ t('confirm.delete_task') }}')">
+        <button type="submit" class="btn btn-danger btn-sm"><i data-lucide="trash-2" class="icon-xs"></i></button>
+      </form>
+    </div>
+  </div>
+  {% if task.description %}
+  <div class="task-description">{{ task.description | linkify }}</div>
+  {% endif %}
+</div>

@@ -1,0 +1,20 @@
+{% if favorites %}
+<div class="home-section">
+  <h2><i data-lucide="star" class="icon-sm" style="color:var(--warning,#f59e0b)"></i> {{ t("home.favorites") }}</h2>
+  <ul class="home-favorites-list">
+    {% for fav in favorites %}
+    <li class="home-fav-item">
+      <span class="home-fav-module">{{ fav.module | replace('_', ' ') | title }}</span>
+      <a href="{{ fav.url }}" class="home-fav-title">{{ fav.title }}</a>
+      <button type="button" class="btn btn-sm fav-btn fav-active" title="{{ t('home.remove_from_favorites') }}"
+              hx-post="/api/favorites/toggle"
+              hx-target="closest li"
+              hx-swap="outerHTML"
+              hx-vals='{"module":"{{ fav.module }}","entry_id":"{{ fav.id }}","title":"{{ fav.title | e }}","url":"{{ fav.url | e }}"}'>
+        <i data-lucide="star" class="icon-xs"></i>
+      </button>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}

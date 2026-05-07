@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}{{ t("cal.sprint_capacity") }} {{ year }} – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+    <h1><i data-lucide="bar-chart-2" class="icon-sm"></i> {{ t("cal.sprint_capacity") }} {{ year }}</h1>
+    <div style="display:flex;gap:0.5rem">
+      <a href="/calendar/capacity?year={{ prev_year }}" class="btn btn-secondary btn-sm">‹ {{ prev_year }}</a>
+      <a href="/calendar/capacity" class="btn btn-secondary btn-sm">{{ t("cal.this_year") }}</a>
+      <a href="/calendar/capacity?year={{ next_year }}" class="btn btn-secondary btn-sm">{{ next_year }} ›</a>
+      <a href="/calendar" class="btn btn-secondary btn-sm"><i data-lucide="calendar" class="icon-xs"></i> {{ t("action.calendar") }}</a>
+    </div>
+  </div>
+</div>
+
+{% if blocked_types %}
+<p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1rem">
+  {{ t("cal.blocked_appointments") }}: {% for btype in blocked_types %}<strong>{{ type_labels.get(btype, btype) }}</strong>{% if not loop.last %}, {% endif %}{% endfor %}
+</p>
+{% endif %}
+
+<div style="display:flex;flex-direction:column;gap:1rem">
+{% for sp in sprints %}
+{% set is_current = today >= sp.start and today <= sp.end %}
+<div class="sprint-card {% if is_current %}sprint-card-current{% endif %}" {% if is_current %}id="current-sprint"{% endif %}>
+  <div class="sprint-card-header">
+    <div>
+      <span class="sprint-name">{{ sp.name }}</span>
+      <span class="sprint-dates">{{ sp.start.strftime('%d.%m.') }} – {{ sp.end.strftime('%d.%m.%Y') }}</span>
+      {% if is_current %}<span class="sprint-badge-current">{{ t("cal.sprint_current") }}</span>{% endif %}
+    </div>
+    <span class="sprint-work-days">{{ sp.total_work_days }} {% if sp.total_work_days != 1 %}{{ t("cal.work_days") }}{% else %}{{ t("cal.work_day") }}{% endif %}</span>
+  </div>
+
+  <div class="sprint-breakdown">
+    {% if sp.holiday_days %}
+    <div class="sprint-row sprint-row-holiday">
+      <span><i data-lucide="star" class="icon-xs"></i> {{ t("cal.holidays") }}</span>
+      <span>{{ sp.holiday_days }} {% if sp.holiday_days != 1 %}{{ t("cal.days") }}{% else %}{{ t("cal.day") }}{% endif %}</span>
+    </div>
+    {% endif %}
+    {% if sp.vac_approved_days %}
+    <div class="sprint-row sprint-row-vacation">
+      <span><i data-lucide="palmtree" class="icon-xs"></i> {{ t("cal.vacation_approved") }}</span>
+      <span>{{ sp.vac_approved_days }} {% if sp.vac_approved_days != 1 %}{{ t("cal.days") }}{% else %}{{ t("cal.day") }}{% endif %}</span>
+    </div>
+    {% endif %}
+    {% if sp.vac_planned_days %}
+    <div class="sprint-row sprint-row-planned">
+      <span><i data-lucide="clock" class="icon-xs"></i> {{ t("cal.vacation_planned_req") }}</span>
+      <span>{{ sp.vac_planned_days }} {% if sp.vac_planned_days != 1 %}{{ t("cal.days") }}{% else %}{{ t("cal.day") }}{% endif %}</span>
+    </div>
+    {% endif %}
+    {% if sp.appt_blocked_days %}
+    <div class="sprint-row sprint-row-appt">
+      <span><i data-lucide="calendar-x" class="icon-xs"></i> {{ t("cal.appointments") }}</span>
+      <span>{{ sp.appt_blocked_days }} {% if sp.appt_blocked_days != 1 %}{{ t("cal.days") }}{% else %}{{ t("cal.day") }}{% endif %}</span>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="sprint-capacity-bar-wrap">
+    {% set pct_avail    = ([sp.remaining_days, 0] | max / sp.total_work_days * 100) | int if sp.total_work_days else 0 %}
+    {% set pct_today    = (sp.days_remaining_from_today / sp.total_work_days * 100) | int if sp.total_work_days else 0 %}
+
+    <div class="sprint-bar-row">
+      <span class="sprint-bar-label">{{ t("cal.available") }}</span>
+      <div class="sprint-capacity-bar">
+        <div class="sprint-bar-avail" style="width:{{ [pct_avail, 100] | min }}%"></div>
+      </div>
+      <span class="sprint-bar-value
+        {% if sp.capacity_pct >= 60 %}sprint-cap-good
+        {% elif sp.capacity_pct >= 30 %}sprint-cap-warn
+        {% else %}sprint-cap-low{% endif %}">
+        {{ sp.remaining_days }} d <span class="sprint-bar-pct">{{ pct_avail }}%</span>
+        {% if sp.vac_planned_days %}<span class="sprint-bar-sub">({{ sp.remaining_after_planned }} d {{ t("cal.after_planning") }})</span>{% endif %}
+      </span>
+    </div>
+
+    <div class="sprint-bar-row">
+      <span class="sprint-bar-label">{{ t("cal.remaining") }}</span>
+      <div class="sprint-capacity-bar">
+        <div class="sprint-bar-today" style="width:{{ [pct_today, 100] | min }}%"></div>
+      </div>
+      <span class="sprint-bar-value sprint-cap-today">{{ sp.days_remaining_from_today }} d <span class="sprint-bar-pct">{{ pct_today }}%</span></span>
+    </div>
+  </div>
+</div>
+{% else %}
+<p class="empty-state">No sprints found for {{ year }}. Configure a sprint anchor date in <a href="/settings#sprints">Settings</a>.</p>
+{% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const el = document.getElementById('current-sprint');
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+</script>
+{% endblock %}

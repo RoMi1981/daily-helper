@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}{{ "Edit" if note else "New" }} Note – Daily Helper{% endblock %}
+
+{% block content %}
+<style>
+  @media (min-width: 769px) { .content { max-width: none !important; } }
+
+  /* ── Notes full-viewport layout ── */
+  .content {
+    height: calc(100dvh - 56px);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding-bottom: 0.75rem;
+  }
+  .entry-form {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .note-body-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  /* ── Editor wrap (line-numbers variant) ── */
+  .note-editor-wrap {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .note-gutter {
+    background: var(--bg-sidebar);
+    color: var(--text-dim);
+    font-family: monospace;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    padding: 0.6rem 0.5rem 0.6rem 0.4rem;
+    text-align: right;
+    min-width: 3rem;
+    overflow: hidden;
+    user-select: none;
+    white-space: pre;
+    border-right: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .note-editor-wrap textarea {
+    border: none !important;
+    border-radius: 0 !important;
+    resize: none !important;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    height: 100% !important;
+    font-family: monospace;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    padding: 0.6rem;
+    background: var(--bg-card);
+    color: var(--text);
+    overflow-y: auto;
+  }
+  .note-editor-wrap textarea:focus { outline: none; box-shadow: none; }
+  .note-editor-wrap textarea::placeholder { color: var(--text-dim); }
+
+  /* ── Plain textarea (no line-numbers) ── */
+  textarea.note-plain {
+    flex: 1;
+    min-height: 0;
+    height: 100% !important;
+    resize: none;
+    font-family: monospace;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    overflow-y: auto;
+  }
+</style>
+
+<div class="page-header">
+  <h1><i data-lucide="file-text" class="icon-sm"></i> {{ "Edit" if note else "New" }} Note</h1>
+</div>
+
+<form method="post" action="/notes/{{ note.id + '/edit' if note else 'new' }}" class="entry-form">
+  <div class="form-group">
+    <label>{{ t("field.subject_required") }}</label>
+    <input type="text" name="subject" class="form-control" required autofocus autocomplete="off"
+           value="{{ note.subject if note else '' }}" placeholder="Note subject…">
+    <p class="field-hint">Required. Used as title in the list and in search results.</p>
+  </div>
+  <div class="form-group note-body-group">
+    <label>{{ t("field.body") }}</label>
+    {% if line_numbers %}
+    <div class="note-editor-wrap">
+      <div class="note-gutter" id="note-gutter">1</div>
+      <textarea name="body" id="note-textarea"
+                placeholder="Note content…">{{ note.body if note else '' }}</textarea>
+    </div>
+    {% else %}
+    <textarea name="body" class="form-control note-plain"
+              placeholder="Note content…">{{ note.body if note else '' }}</textarea>
+    {% endif %}
+  </div>
+  {% if encryption_available %}
+  <div style="display:flex;align-items:center;gap:0.5rem;margin-top:0.25rem;flex-shrink:0">
+    <input type="checkbox" name="encrypt" id="encrypt-toggle"
+           {% if note and note.encrypted %}checked{% endif %}>
+    <label for="encrypt-toggle" style="margin:0;font-size:0.9rem;cursor:pointer"><i data-lucide="lock" class="icon-xs"></i> {{ t("label.encrypt_body") }}</label>
+    <span class="field-hint" style="margin:0">Body is encrypted at rest; only readable after unlock.</span>
+  </div>
+  {% endif %}
+  <div class="form-actions" style="flex-shrink:0;padding-top:0.5rem">
+    <button type="submit" class="btn btn-primary">{{ t("action.save") if note else t("action.create") }}</button>
+    {% if note %}
+    <a href="/notes/{{ note.id }}" class="btn">{{ t("action.cancel") }}</a>
+    {% else %}
+    <a href="/notes" class="btn">{{ t("action.cancel") }}</a>
+    {% endif %}
+  </div>
+</form>
+
+{% if is_edit %}
+<script>
+(function() {
+  var ta = document.querySelector('textarea[name="body"]');
+  if (!ta) return;
+
+  var scrollPos = {{ scroll_position | default('end') | tojson }};
+  var form = ta.closest('form');
+  var original = ta.value;
+
+  // Cursor to configured position
+  ta.focus();
+  if (scrollPos === 'start') {
+    ta.setSelectionRange(0, 0);
+    ta.scrollTop = 0;
+  } else {
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+    ta.scrollTop = ta.scrollHeight;
+  }
+
+  // Auto-save on blur (only when focus leaves the form, and content changed)
+  ta.addEventListener('blur', function(e) {
+    var related = e.relatedTarget;
+    // If focus moved to something inside the form, let it handle itself
+    if (related && form.contains(related)) return;
+    form.submit();
+  });
+})();
+</script>
+{% endif %}
+{% if line_numbers %}
+<script>
+(function() {
+  var textarea = document.getElementById('note-textarea');
+  var gutter   = document.getElementById('note-gutter');
+
+  function updateGutter() {
+    var lines = textarea.value.split('\n').length;
+    var nums = [];
+    for (var i = 1; i <= lines; i++) nums.push(i);
+    gutter.textContent = nums.join('\n');
+  }
+
+  function syncScroll() {
+    gutter.scrollTop = textarea.scrollTop;
+  }
+
+  textarea.addEventListener('input', updateGutter);
+  textarea.addEventListener('scroll', syncScroll);
+  textarea.addEventListener('keydown', function(e) {
+    if (e.key === 'Tab') {
+      e.preventDefault();
+      var start = textarea.selectionStart;
+      var end   = textarea.selectionEnd;
+      textarea.value = textarea.value.substring(0, start) + '  ' + textarea.value.substring(end);
+      textarea.selectionStart = textarea.selectionEnd = start + 2;
+      updateGutter();
+    }
+  });
+
+  updateGutter();
+})();
+</script>
+{% endif %}
+{% endblock %}

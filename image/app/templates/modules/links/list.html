@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Links – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="link-2" class="icon-sm"></i> {{ t("nav.links") }}</h1>
+  <div style="display:flex;align-items:center;gap:0.5rem">
+    {% if sections | length > 1 %}
+    <label for="section-select" style="font-size:0.85rem;color:var(--text-muted);white-space:nowrap">Section:</label>
+    <select id="section-select" class="form-control" style="width:auto;padding:0.3rem 0.5rem;font-size:0.85rem"
+            onchange="window.location='/links?section='+this.value">
+      {% for s in sections %}
+      <option value="{{ s.id }}" {% if s.id == active_section.id %}selected{% endif %}>{{ s.name }}</option>
+      {% endfor %}
+    </select>
+    {% endif %}
+    <a href="/help/links" class="btn btn-sm" title="Help"><i data-lucide="help-circle" class="icon-xs"></i></a>
+  </div>
+</div>
+
+{% if saved %}
+<div class="alert alert-success">{{ t("msg.saved_link") }}</div>
+{% endif %}
+
+{% if not configured %}
+<div class="alert alert-warning">
+  {{ t("msg.no_repo") | safe }}
+</div>
+{% else %}
+
+<div style="margin-bottom:1rem;display:flex;gap:0.5rem;align-items:center">
+  <a href="/links/new?section={{ active_section.id }}{% if category %}&category={{ category }}{% endif %}" class="btn btn-primary">+ {{ t("action.new") }}</a>
+  <button type="button" class="btn btn-sm bulk-select-btn" onclick="toggleBulk('links-bulk')" id="links-select-btn">{{ t("action.select") }}</button>
+</div>
+
+<!-- Search -->
+<form method="get" action="/links" style="margin-bottom:1rem;display:flex;gap:0.5rem;flex-wrap:wrap">
+  <input type="hidden" name="section" value="{{ active_section.id }}">
+  <input type="hidden" name="category" value="{{ category }}">
+  <input type="text" name="q" id="search-input" class="form-control" value="{{ q }}"
+         placeholder="Search links…" autocomplete="off" style="flex:1;min-width:180px">
+  <button type="submit" class="btn">{{ t("action.search") }}</button>
+  {% if q or category %}<a href="/links?section={{ active_section.id }}" class="btn">Clear</a>{% endif %}
+</form>
+
+<!-- Category filter -->
+{% if categories %}
+<div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem">
+  <a href="/links?section={{ active_section.id }}{% if q %}&q={{ q }}{% endif %}"
+     class="btn btn-sm {% if not category %}btn-primary{% endif %}">All</a>
+  {% for cat in categories %}
+  <a href="/links?section={{ active_section.id }}&category={{ cat }}{% if q %}&q={{ q }}{% endif %}"
+     class="btn btn-sm {% if category == cat %}btn-primary{% endif %}">{{ cat }}</a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if not links %}
+<div class="alert alert-info">
+  {% if q or category %}{{ t("empty.links_search") }}{% else %}{{ t("empty.links") }} <a href="/links/new?section={{ active_section.id }}">Add one.</a>{% endif %}
+</div>
+{% else %}
+
+<form id="links-bulk" method="post" action="/links/bulk-delete">
+  <input type="hidden" name="section" value="{{ active_section.id }}">
+{% set ns = namespace(current_cat=None) %}
+<div class="module-list">
+{% for link in links %}
+  {% if link.category != ns.current_cat %}
+    {% if ns.current_cat is not none %}</div>{% endif %}
+    {% set ns.current_cat = link.category %}
+    {% if link.category %}
+    <div style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-top:0.75rem;margin-bottom:0.25rem;padding-left:0.25rem">
+      {{ link.category }}
+    </div>
+    {% endif %}
+    <div>
+  {% endif %}
+
+  <div class="module-list-row">
+    <input type="checkbox" name="ids" value="{{ link.id }}" class="bulk-checkbox" onchange="bulkChanged('links-bulk')">
+    <div class="card mod-card" style="flex:1;min-width:0">
+      <div class="mod-card-info">
+        <a href="{{ link.url }}" target="_blank" rel="noopener noreferrer" class="mod-card-title" style="text-decoration:none;color:inherit;word-break:break-all">{{ link.title }}</a>
+        <div class="mod-card-meta">
+          <span style="word-break:break-all;opacity:0.7">{{ link.url }}</span>
+          {% if link.description %}<span>{{ link.description }}</span>{% endif %}
+        </div>
+      </div>
+      <div class="mod-card-actions">
+        <button class="btn btn-sm" onclick="copyUrl('{{ link.url }}')" title="{{ t('action.copy_url') }}"><i data-lucide="clipboard" class="icon-xs"></i></button>
+        <a href="/links/{{ link.id }}/edit?section={{ active_section.id }}" class="btn btn-sm"><i data-lucide="pencil" class="icon-xs"></i></a>
+        <form method="post" action="/links/{{ link.id }}/delete" style="margin:0"
+              onsubmit="return confirm('Delete \'{{ link.title }}\'?')">
+          <input type="hidden" name="section" value="{{ active_section.id }}">
+          <button type="submit" class="btn btn-danger btn-sm"><i data-lucide="trash-2" class="icon-xs"></i></button>
+        </form>
+        <button type="button" class="btn btn-sm fav-btn {% if link.id in favorite_ids %}fav-active{% endif %}" title="{% if link.id in favorite_ids %}Remove from favorites{% else %}Add to favorites{% endif %}"
+                hx-post="/api/favorites/toggle" hx-target="this" hx-swap="outerHTML"
+                hx-vals='{"module":"links","entry_id":"{{ link.id }}","title":"{{ link.title | e }}","url":"{{ link.url | e }}"}'>
+          <i data-lucide="star" class="icon-xs"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+{% endfor %}
+</div>
+<div class="bulk-toolbar" id="links-bulk-toolbar">
+  <span class="bulk-count" id="links-bulk-count"></span>
+  <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('{{ t('confirm.delete_selected') }}')">
+    <i data-lucide="trash-2" class="icon-xs"></i> Delete selected
+  </button>
+  <button type="button" class="btn btn-sm" onclick="toggleBulk('links-bulk')">{{ t("action.cancel") }}</button>
+</div>
+</form>
+{% endif %}
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyUrl(url) {
+  copyText(url).then(function() {
+    var btns = document.querySelectorAll('[onclick^="copyUrl"]');
+    btns.forEach(function(b) {
+      if (b.getAttribute('onclick') === "copyUrl('" + url + "')") {
+        var orig = b.innerHTML;
+        b.textContent = '✓';
+        setTimeout(function() { b.innerHTML = orig; }, 1500);
+      }
+    });
+  });
+}
+function toggleBulk(formId) {
+  const form = document.getElementById(formId);
+  const isActive = form.classList.toggle('bulk-mode');
+  const toolbar = document.getElementById(formId + '-toolbar');
+  const btn = document.getElementById(formId.replace('-bulk','') + '-select-btn');
+  if (!isActive) {
+    form.querySelectorAll('.bulk-checkbox').forEach(cb => cb.checked = false);
+    if (toolbar) toolbar.classList.remove('visible');
+  }
+  if (btn) btn.textContent = isActive ? 'Cancel' : 'Select';
+}
+function bulkChanged(formId) {
+  const form = document.getElementById(formId);
+  const checked = form.querySelectorAll('.bulk-checkbox:checked').length;
+  const toolbar = document.getElementById(formId + '-toolbar');
+  const countEl = document.getElementById(formId + '-count');
+  if (toolbar) toolbar.classList.toggle('visible', checked > 0);
+  if (countEl) countEl.textContent = checked + ' selected';
+}
+</script>
+{% endblock %}

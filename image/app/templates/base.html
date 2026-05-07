@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="{{ get_lang() }}">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Daily Helper{% endblock %}</title>
+  <script>
+    (function() {
+      var stored = localStorage.getItem('theme');
+      var serverMode = '{{ get_theme_mode() }}';
+      var theme;
+      if (stored === 'dark' || stored === 'light') {
+        theme = stored;
+      } else if (serverMode === 'auto') {
+        theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      } else {
+        theme = serverMode;
+      }
+      if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    })();
+  </script>
+  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css" id="hljs-theme">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/highlight.min.js"></script>
+</head>
+<body>
+  <nav class="navbar">
+    <button class="hamburger" id="hamburger" aria-label="Open menu" onclick="toggleSidebar()"><i data-lucide="menu" class="icon"></i></button>
+    {% set _m = get_modules() %}
+    <a href="/" class="nav-brand"><i data-lucide="calendar-days" class="icon"></i> Daily Helper</a>
+    {% if active_module and active_module != 'home' %}
+    <span class="nav-section">
+      {% if active_module == 'knowledge' %}<i data-lucide="book-open" class="icon"></i> {{ t("nav.knowledge") }}
+      {% elif active_module == 'tasks' %}<i data-lucide="check-square-2" class="icon"></i> {{ t("nav.tasks") }}
+      {% elif active_module == 'vacations' %}<i data-lucide="palmtree" class="icon"></i> {{ t("nav.vacations") }}
+      {% elif active_module == 'mail_templates' %}<i data-lucide="mail" class="icon"></i> {{ t("nav.mail_templates") }}
+      {% elif active_module == 'ticket_templates' %}<i data-lucide="ticket" class="icon"></i> {{ t("nav.ticket_templates") }}
+      {% elif active_module == 'notes' %}<i data-lucide="file-text" class="icon"></i> {{ t("nav.notes") }}
+      {% elif active_module == 'links' %}<i data-lucide="link-2" class="icon"></i> {{ t("nav.links") }}
+      {% elif active_module == 'runbooks' %}<i data-lucide="list-checks" class="icon"></i> {{ t("nav.runbooks") }}
+      {% elif active_module == 'snippets' %}<i data-lucide="code-2" class="icon"></i> {{ t("nav.snippets") }}
+      {% elif active_module == 'appointments' %}<i data-lucide="calendar-days" class="icon"></i> {{ t("nav.appointments") }}
+      {% elif active_module == 'calendar' %}<i data-lucide="calendar" class="icon"></i> {{ t("nav.calendar") }}
+      {% elif active_module == 'motd' %}<i data-lucide="message-square" class="icon"></i> {{ t("nav.motd") }}
+      {% elif active_module == 'potd' %}<i data-lucide="image" class="icon"></i> {{ t("nav.potd") }}
+      {% elif active_module == 'memes' %}<i data-lucide="smile" class="icon"></i> {{ t("nav.memes") }}
+      {% elif active_module == 'rss' %}<i data-lucide="rss" class="icon"></i> {{ t("nav.rss") }}
+      {% elif active_module == 'history' %}<i data-lucide="history" class="icon"></i> {{ t("nav.history") }}
+      {% elif active_module == 'operations' %}<i data-lucide="shuffle" class="icon"></i> {{ t("nav.operations") }}
+      {% endif %}
+    </span>
+    {% endif %}
+    <div class="nav-links">
+      <form method="get" action="/search" class="nav-search-form" role="search">
+        <input type="text" name="q" id="global-search-nav" placeholder="{{ t('action.search_placeholder') }}" autocomplete="off"
+               class="nav-search-input"{% if active_module == 'search' and q is defined %} value="{{ q }}"{% endif %}>
+      </form>
+      <a href="/history" class="nav-link nav-link-desktop {% if active_module=='history' %}nav-link-active{% endif %}"><i data-lucide="history" class="icon"></i> {{ t("nav.history") }}</a>
+      {% if get_repo_count() > 1 %}<a href="/operations" class="nav-link nav-link-desktop {% if active_module=='operations' %}nav-link-active{% endif %}"><i data-lucide="shuffle" class="icon"></i> {{ t("nav.operations") }}</a>{% endif %}
+      <a href="/settings" class="nav-link nav-link-desktop"><i data-lucide="settings" class="icon"></i> {{ t("nav.settings") }}</a>
+      <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()"><i data-lucide="sun" id="theme-icon" class="icon"></i></button>
+    </div>
+  </nav>
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+  {% block sticky_nav %}{% endblock %}
+  <div class="layout">
+    <aside class="sidebar" id="sidebar">
+      <nav class="sidebar-desktop-nav">
+        <a href="/" class="sidebar-desktop-link {% if not active_module or active_module == 'home' %}active{% endif %}"><i data-lucide="home" class="icon"></i> {{ t("nav.home") }}</a>
+        {% if _m.get('appointments', true) %}<a href="/appointments" class="sidebar-desktop-link {% if active_module=='appointments' %}active{% endif %}"><i data-lucide="calendar-days" class="icon"></i> {{ t("nav.appointments") }}</a>{% endif %}
+        {% if _m.get('appointments', true) or _m.get('vacations', true) %}<a href="/calendar" class="sidebar-desktop-link {% if active_module=='calendar' %}active{% endif %}"><i data-lucide="calendar" class="icon"></i> {{ t("nav.calendar") }}</a>{% endif %}
+        {% if _m.get('knowledge', true) %}<a href="/knowledge" class="sidebar-desktop-link {% if active_module=='knowledge' %}active{% endif %}"><i data-lucide="book-open" class="icon"></i> {{ t("nav.knowledge") }}</a>{% endif %}
+        {% if _m.get('links', true) %}<a href="/links" class="sidebar-desktop-link {% if active_module=='links' %}active{% endif %}"><i data-lucide="link-2" class="icon"></i> {{ t("nav.links") }}</a>{% endif %}
+        {% if _m.get('mail_templates', true) %}<a href="/mail-templates" class="sidebar-desktop-link {% if active_module=='mail_templates' %}active{% endif %}"><i data-lucide="mail" class="icon"></i> {{ t("nav.mail_templates") }}</a>{% endif %}
+        {% if _m.get('memes', true) %}<a href="/memes" class="sidebar-desktop-link {% if active_module=='memes' %}active{% endif %}"><i data-lucide="smile" class="icon"></i> {{ t("nav.memes") }}</a>{% endif %}
+        {% if _m.get('motd', true) %}<a href="/motd" class="sidebar-desktop-link {% if active_module=='motd' %}active{% endif %}"><i data-lucide="message-square" class="icon"></i> {{ t("nav.motd") }}</a>{% endif %}
+        {% if _m.get('notes', true) %}<a href="/notes" class="sidebar-desktop-link {% if active_module=='notes' %}active{% endif %}"><i data-lucide="file-text" class="icon"></i> {{ t("nav.notes") }}</a>{% endif %}
+        {% if _m.get('potd', true) %}<a href="/potd" class="sidebar-desktop-link {% if active_module=='potd' %}active{% endif %}"><i data-lucide="image" class="icon"></i> {{ t("nav.potd") }}</a>{% endif %}
+        {% if _m.get('rss', true) %}<a href="/rss" class="sidebar-desktop-link {% if active_module=='rss' %}active{% endif %}"><i data-lucide="rss" class="icon"></i> {{ t("nav.rss") }}</a>{% endif %}
+        {% if _m.get('runbooks', true) %}<a href="/runbooks" class="sidebar-desktop-link {% if active_module=='runbooks' %}active{% endif %}"><i data-lucide="list-checks" class="icon"></i> {{ t("nav.runbooks") }}</a>{% endif %}
+        {% if _m.get('snippets', true) %}<a href="/snippets" class="sidebar-desktop-link {% if active_module=='snippets' %}active{% endif %}"><i data-lucide="code-2" class="icon"></i> {{ t("nav.snippets") }}</a>{% endif %}
+        {% if _m.get('tasks', true) %}<a href="/tasks" class="sidebar-desktop-link {% if active_module=='tasks' %}active{% endif %}"><i data-lucide="check-square-2" class="icon"></i> {{ t("nav.tasks") }}</a>{% endif %}
+        {% if _m.get('ticket_templates', true) %}<a href="/ticket-templates" class="sidebar-desktop-link {% if active_module=='ticket_templates' %}active{% endif %}"><i data-lucide="ticket" class="icon"></i> {{ t("nav.ticket_templates") }}</a>{% endif %}
+        {% if _m.get('vacations', true) %}<a href="/vacations" class="sidebar-desktop-link {% if active_module=='vacations' %}active{% endif %}"><i data-lucide="palmtree" class="icon"></i> {{ t("nav.vacations") }}</a>{% endif %}
+      </nav>
+      <div class="sidebar-status">
+        <span hx-get="/api/redis-status" hx-trigger="load" hx-swap="outerHTML"></span>
+        <span class="version-badge">{{ app_version }}</span>
+      </div>
+      <nav class="sidebar-mobile-nav">
+        <a href="/" class="sidebar-mobile-link"><i data-lucide="home" class="icon"></i> {{ t("nav.home") }}</a>
+        <hr style="border-color:var(--border);margin:0.5rem 0">
+        {% if _m.get('appointments', true) %}<a href="/appointments" class="sidebar-mobile-link {% if active_module == 'appointments' %}active{% endif %}"><i data-lucide="calendar-days" class="icon"></i> {{ t("nav.appointments") }}</a>{% endif %}
+        {% if _m.get('appointments', true) or _m.get('vacations', true) %}<a href="/calendar" class="sidebar-mobile-link {% if active_module == 'calendar' %}active{% endif %}"><i data-lucide="calendar" class="icon"></i> {{ t("nav.calendar") }}</a>{% endif %}
+        {% if _m.get('knowledge', true) %}<a href="/knowledge" class="sidebar-mobile-link"><i data-lucide="book-open" class="icon"></i> {{ t("nav.knowledge") }}</a>{% endif %}
+        {% if _m.get('links', true) %}<a href="/links" class="sidebar-mobile-link {% if active_module == 'links' %}active{% endif %}"><i data-lucide="link-2" class="icon"></i> {{ t("nav.links") }}</a>{% endif %}
+        {% if _m.get('mail_templates', true) %}<a href="/mail-templates" class="sidebar-mobile-link {% if active_module == 'mail_templates' %}active{% endif %}"><i data-lucide="mail" class="icon"></i> {{ t("nav.mail_templates") }}</a>{% endif %}
+        {% if _m.get('memes', true) %}<a href="/memes" class="sidebar-mobile-link {% if active_module == 'memes' %}active{% endif %}"><i data-lucide="smile" class="icon"></i> {{ t("nav.memes") }}</a>{% endif %}
+        {% if _m.get('motd', true) %}<a href="/motd" class="sidebar-mobile-link {% if active_module == 'motd' %}active{% endif %}"><i data-lucide="message-square" class="icon"></i> {{ t("nav.motd") }}</a>{% endif %}
+        {% if _m.get('notes', true) %}<a href="/notes" class="sidebar-mobile-link {% if active_module == 'notes' %}active{% endif %}"><i data-lucide="file-text" class="icon"></i> {{ t("nav.notes") }}</a>{% endif %}
+        {% if _m.get('potd', true) %}<a href="/potd" class="sidebar-mobile-link {% if active_module == 'potd' %}active{% endif %}"><i data-lucide="image" class="icon"></i> {{ t("nav.potd") }}</a>{% endif %}
+        {% if _m.get('rss', true) %}<a href="/rss" class="sidebar-mobile-link {% if active_module == 'rss' %}active{% endif %}"><i data-lucide="rss" class="icon"></i> {{ t("nav.rss") }}</a>{% endif %}
+        {% if _m.get('runbooks', true) %}<a href="/runbooks" class="sidebar-mobile-link {% if active_module == 'runbooks' %}active{% endif %}"><i data-lucide="list-checks" class="icon"></i> {{ t("nav.runbooks") }}</a>{% endif %}
+        {% if _m.get('snippets', true) %}<a href="/snippets" class="sidebar-mobile-link {% if active_module == 'snippets' %}active{% endif %}"><i data-lucide="code-2" class="icon"></i> {{ t("nav.snippets") }}</a>{% endif %}
+        {% if _m.get('tasks', true) %}<a href="/tasks" class="sidebar-mobile-link"><i data-lucide="check-square-2" class="icon"></i> {{ t("nav.tasks") }}</a>{% endif %}
+        {% if _m.get('ticket_templates', true) %}<a href="/ticket-templates" class="sidebar-mobile-link {% if active_module == 'ticket_templates' %}active{% endif %}"><i data-lucide="ticket" class="icon"></i> {{ t("nav.ticket_templates") }}</a>{% endif %}
+        {% if _m.get('vacations', true) %}<a href="/vacations" class="sidebar-mobile-link"><i data-lucide="palmtree" class="icon"></i> {{ t("nav.vacations") }}</a>{% endif %}
+        <hr style="border-color:var(--border);margin:0.5rem 0">
+        <form method="get" action="/search" style="padding:0 0.25rem;margin-bottom:0.25rem" onsubmit="closeSidebar()">
+          <input type="text" name="q" placeholder="{{ t('label.search_everything') }}" autocomplete="off"
+                 class="form-control" style="font-size:0.85rem;padding:0.35rem 0.65rem">
+        </form>
+        <a href="/history" class="sidebar-mobile-link {% if active_module == 'history' %}active{% endif %}"><i data-lucide="history" class="icon"></i> {{ t("nav.history") }}</a>
+        {% if get_repo_count() > 1 %}<a href="/operations" class="sidebar-mobile-link {% if active_module == 'operations' %}active{% endif %}"><i data-lucide="shuffle" class="icon"></i> {{ t("nav.operations") }}</a>{% endif %}
+        <a href="/settings" class="sidebar-mobile-link"><i data-lucide="settings" class="icon"></i> {{ t("nav.settings") }}</a>
+      </nav>
+    </aside>
+
+    <main class="content {% block content_class %}{% endblock %}">
+      <div id="repo-status-banner"
+           hx-get="/api/repos-status-banner"
+           hx-trigger="load, every 30s"
+           hx-swap="innerHTML">
+      </div>
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  <script>
+    function toggleTheme() {
+      var html = document.documentElement;
+      var isLight = html.getAttribute('data-theme') === 'light';
+      html.setAttribute('data-theme', isLight ? 'dark' : 'light');
+      localStorage.setItem('theme', isLight ? 'dark' : 'light');
+      var icon = document.getElementById('theme-icon');
+      if (icon) {
+        icon.setAttribute('data-lucide', isLight ? 'moon' : 'sun');
+        lucide.createIcons({el: document.getElementById('theme-toggle')});
+      }
+      updateHljsTheme();
+    }
+    (function() {
+      if (document.documentElement.getAttribute('data-theme') === 'light') {
+        var icon = document.getElementById('theme-icon');
+        if (icon) { icon.setAttribute('data-lucide', 'moon'); }
+      }
+      // Listen for OS theme changes when in auto mode and no localStorage override
+      var serverMode = '{{ get_theme_mode() }}';
+      if (serverMode === 'auto' && !localStorage.getItem('theme')) {
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+          document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+          var icon = document.getElementById('theme-icon');
+          if (icon) {
+            icon.setAttribute('data-lucide', e.matches ? 'sun' : 'moon');
+            if (window.lucide) lucide.createIcons({el: document.getElementById('theme-toggle')});
+          }
+          updateHljsTheme();
+        });
+      }
+    })();
+
+    // Syntax highlighting
+    function applyHighlight(root) {
+      (root || document).querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+    }
+    function updateHljsTheme() {
+      var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      document.getElementById('hljs-theme').href = isLight
+        ? 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github.min.css'
+        : 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.11.1/styles/github-dark.min.css';
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+      updateHljsTheme();
+      applyHighlight();
+    });
+    // Re-highlight and re-init icons after HTMX swaps
+    document.addEventListener('htmx:afterSwap', function(e) {
+      applyHighlight(e.detail.elt);
+      if (window.lucide) lucide.createIcons({el: e.detail.elt});
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+      var tag = document.activeElement.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === 'Escape') {
+        closeSidebar();
+        qcClose();
+      } else if (e.key === '/') {
+        e.preventDefault();
+        var s = document.getElementById('global-search-nav') || document.getElementById('global-search-input') || document.getElementById('search-input');
+        if (s) { s.focus(); s.select(); }
+      } else if (e.key === 'n') {
+        window.location.href = '/new';
+      } else if (e.key === 'e') {
+        var editLink = document.querySelector('a[href$="/edit"]');
+        if (editLink) window.location.href = editLink.href;
+      } else if (e.key === '?') {
+        e.preventDefault();
+        var mod = '{{ active_module or "" }}';
+        var helpModules = ['knowledge','tasks','notes','links','runbooks','snippets','mail_templates','ticket_templates','vacations','appointments'];
+        var slug = mod.replace('_', '-');
+        if (helpModules.indexOf(mod) !== -1) {
+          window.location.href = '/help/' + slug;
+        }
+      } else if (e.key === 'q') {
+        e.preventDefault();
+        qcOpen();
+      }
+    });
+
+    // Mobile sidebar drawer
+    function toggleSidebar() {
+      var open = document.body.classList.toggle('sidebar-open');
+      document.getElementById('hamburger').setAttribute('aria-expanded', open);
+    }
+    function closeSidebar() {
+      document.body.classList.remove('sidebar-open');
+      document.getElementById('hamburger').setAttribute('aria-expanded', false);
+    }
+    // Close sidebar on nav link click (mobile navigation)
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.sidebar a').forEach(function(a) {
+        a.addEventListener('click', closeSidebar);
+      });
+    });
+  </script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script>lucide.createIcons();</script>
+  <script>
+  function copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text);
+    }
+    return new Promise(function(resolve) {
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      try { document.execCommand('copy'); } catch(e) {}
+      document.body.removeChild(ta);
+      resolve();
+    });
+  }
+  function copyImage(btn, src) {
+    var orig = btn ? btn.innerHTML : null;
+    function markDone(ok) {
+      if (!btn) return;
+      btn.textContent = ok ? '✓' : 'Failed';
+      setTimeout(function() { btn.innerHTML = orig; if (window.lucide) lucide.createIcons({el: btn}); }, 1800);
+    }
+    if (!navigator.clipboard || !window.ClipboardItem) { markDone(false); return; }
+    var pngPromise = fetch(src).then(function(r) {
+      return r.blob();
+    }).then(function(blob) {
+      if (blob.type === 'image/png') return blob;
+      return new Promise(function(resolve, reject) {
+        var img = new Image();
+        var url = URL.createObjectURL(blob);
+        img.onload = function() {
+          var canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          canvas.getContext('2d').drawImage(img, 0, 0);
+          canvas.toBlob(function(png) { URL.revokeObjectURL(url); resolve(png); }, 'image/png');
+        };
+        img.onerror = function() { URL.revokeObjectURL(url); reject(); };
+        img.src = url;
+      });
+    });
+    navigator.clipboard.write([new ClipboardItem({'image/png': pngPromise})])
+      .then(function() { markDone(true); })
+      .catch(function() { markDone(false); });
+  }
+  </script>
+  {% block scripts %}{% endblock %}
+
+  <!-- Quick-Capture Modal -->
+  <div class="qc-backdrop" id="qc-backdrop" onclick="if(event.target===this)qcClose()">
+    <div class="qc-modal" role="dialog" aria-modal="true" aria-label="Quick Capture">
+      <div class="qc-header">
+        <span class="qc-title"><i data-lucide="zap" class="icon-xs icon-accent"></i> {{ t("qc.title") }}</span>
+        <button class="btn btn-sm" onclick="qcClose()" style="padding:0.2rem 0.5rem"><i data-lucide="x" class="icon-xs"></i></button>
+      </div>
+      <div class="qc-type-tabs" id="qc-tabs"></div>
+      <form id="qc-form">
+        <div class="qc-fields" id="qc-fields"></div>
+        <div class="qc-actions">
+          <span class="qc-hint">{{ t("qc.hint") }}</span>
+          <button type="button" class="btn btn-secondary" onclick="qcClose()">{{ t("action.cancel") }}</button>
+          <button type="button" class="btn btn-primary" id="qc-submit" onclick="document.getElementById('qc-form').requestSubmit()">{{ t("action.save") }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  <script>
+  (function() {
+    {% set _mods = get_modules() %}
+    var QC_TYPES = [
+      {% if _mods.get('knowledge', true) %}{ id:'knowledge', label:'{{ t("nav.knowledge") }}', icon:'book-open', fields:[
+        {name:'title',label:'{{ t("field.title") }}',type:'text',required:true},
+        {name:'category',label:'{{ t("field.category") }}',type:'text'}
+      ], action:null, redirect:'/knowledge/new' },{% endif %}
+      {% if _mods.get('tasks', true) %}{ id:'tasks', label:'{{ t("qc.type.task") }}', icon:'check-square-2', fields:[
+        {name:'title',label:'{{ t("field.title") }}',type:'text',required:true},
+        {name:'due_date',label:'{{ t("field.due_date") }}',type:'date'},
+        {name:'priority',label:'{{ t("field.priority") }}',type:'select',options:['medium','high','low'],optionLabels:['{{ t("priority.medium") }}','{{ t("priority.high") }}','{{ t("priority.low") }}']}
+      ], action:'/tasks', method:'POST' },{% endif %}
+      {% if _mods.get('notes', true) %}{ id:'notes', label:'{{ t("qc.type.note") }}', icon:'file-text', fields:[
+        {name:'subject',label:'{{ t("field.subject") }}',type:'text',required:true},
+        {name:'body',label:'{{ t("field.body") }}',type:'textarea'}
+      ], action:'/notes', method:'POST' },{% endif %}
+      {% if _mods.get('links', true) %}{ id:'links', label:'{{ t("qc.type.link") }}', icon:'link-2', fields:[
+        {name:'title',label:'{{ t("field.title") }}',type:'text',required:true},
+        {name:'url',label:'{{ t("field.url") }}',type:'text',required:true},
+        {name:'category',label:'{{ t("field.category") }}',type:'text'}
+      ], action:'/links', method:'POST' },{% endif %}
+      {% if _mods.get('snippets', true) %}{ id:'snippets', label:'{{ t("qc.type.snippet") }}', icon:'code-2', fields:[
+        {name:'title',label:'{{ t("field.title") }}',type:'text',required:true},
+        {name:'step_cmd_0',label:'{{ t("field.command") }}',type:'text'},
+        {name:'step_desc_0',label:'{{ t("field.description") }}',type:'text'}
+      ], action:'/snippets', method:'POST' },{% endif %}
+    ];
+
+    var activeType = null;
+
+    function qcOpen() {
+      if (!QC_TYPES.length) return;
+      var backdrop = document.getElementById('qc-backdrop');
+      backdrop.classList.add('open');
+      renderTabs();
+      selectType(QC_TYPES[0].id);
+      setTimeout(function() {
+        var f = document.querySelector('#qc-fields input, #qc-fields textarea');
+        if (f) f.focus();
+      }, 50);
+      if (window.lucide) lucide.createIcons({el: backdrop});
+    }
+
+    function qcClose() {
+      document.getElementById('qc-backdrop').classList.remove('open');
+      document.getElementById('qc-form').reset();
+    }
+
+    function renderTabs() {
+      var tabs = document.getElementById('qc-tabs');
+      tabs.innerHTML = '';
+      QC_TYPES.forEach(function(t) {
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'qc-tab';
+        btn.dataset.id = t.id;
+        btn.innerHTML = '<i data-lucide="' + t.icon + '" class="icon-xs"></i> ' + t.label;
+        btn.onclick = function() { selectType(t.id); };
+        tabs.appendChild(btn);
+      });
+      if (window.lucide) lucide.createIcons({el: tabs});
+    }
+
+    function selectType(id) {
+      activeType = QC_TYPES.find(function(t) { return t.id === id; });
+      if (!activeType) return;
+      document.querySelectorAll('.qc-tab').forEach(function(b) {
+        b.classList.toggle('active', b.dataset.id === id);
+      });
+      var fields = document.getElementById('qc-fields');
+      fields.innerHTML = '';
+      activeType.fields.forEach(function(f) {
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;flex-direction:column;gap:0.25rem';
+        var lbl = document.createElement('label');
+        lbl.style.cssText = 'font-size:0.85rem;font-weight:500';
+        lbl.textContent = f.label + (f.required ? ' *' : '');
+        var inp;
+        if (f.type === 'textarea') {
+          inp = document.createElement('textarea');
+          inp.rows = 3;
+          inp.className = 'form-control';
+          inp.style.resize = 'vertical';
+        } else if (f.type === 'select') {
+          inp = document.createElement('select');
+          inp.className = 'form-control';
+          (f.options || []).forEach(function(o, i) {
+            var opt = document.createElement('option');
+            opt.value = o;
+            opt.textContent = (f.optionLabels && f.optionLabels[i]) ? f.optionLabels[i] : (o.charAt(0).toUpperCase() + o.slice(1));
+            inp.appendChild(opt);
+          });
+        } else {
+          inp = document.createElement('input');
+          inp.type = f.type || 'text';
+          inp.className = 'form-control';
+        }
+        inp.name = f.name;
+        if (f.required) inp.required = true;
+        wrap.appendChild(lbl);
+        wrap.appendChild(inp);
+        fields.appendChild(wrap);
+      });
+    }
+
+    document.getElementById('qc-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      if (!activeType) return;
+      // Redirect-only types (e.g. knowledge) open the new-form page
+      if (activeType.redirect) {
+        var params = new URLSearchParams();
+        new FormData(this).forEach(function(v, k) { if (v) params.set(k, v); });
+        window.location.href = activeType.redirect + '?' + params.toString();
+        return;
+      }
+      var data = new FormData(this);
+      fetch(activeType.action, {
+        method: activeType.method,
+        body: data,
+        redirect: 'manual'
+      }).then(function(resp) {
+        if (resp.ok || resp.status === 0 || resp.type === 'opaqueredirect') {
+          qcClose();
+          var flash = document.createElement('div');
+          flash.className = 'alert alert-success';
+          flash.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;z-index:2000;padding:0.65rem 1.25rem;min-width:180px;animation:qc-in 0.15s ease';
+          flash.textContent = activeType.label + ' {{ t("qc.saved") }}';
+          document.body.appendChild(flash);
+          setTimeout(function() { flash.remove(); }, 2500);
+        }
+      }).catch(function() {});
+    });
+
+    window.qcOpen = qcOpen;
+    window.qcClose = qcClose;
+  })();
+  </script>
+
+  <!-- Lightbox -->
+  <div id="lightbox" role="dialog" aria-modal="true" aria-label="Image viewer"
+       style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.88);
+              align-items:center;justify-content:center;flex-direction:column;gap:0.75rem">
+    <button id="lb-close" aria-label="Close"
+            style="position:absolute;top:1rem;right:1.25rem;background:none;border:none;
+                   color:#fff;font-size:2rem;line-height:1;cursor:pointer;opacity:0.8">×</button>
+    <img id="lb-img" src="" alt=""
+         style="max-width:92vw;max-height:82vh;object-fit:contain;border-radius:8px;display:block">
+    <div style="display:flex;gap:0.5rem">
+      <button id="lb-copy" class="btn btn-sm"
+              style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3)">
+        <i data-lucide="clipboard-copy" style="width:14px;height:14px;vertical-align:middle;margin-right:4px"></i>{{ t("action.copy_image") }}
+      </button>
+      <a id="lb-open" href="#" target="_blank" class="btn btn-sm"
+         style="background:rgba(255,255,255,0.15);color:#fff;border-color:rgba(255,255,255,0.3)">
+        <i data-lucide="external-link" style="width:14px;height:14px;vertical-align:middle;margin-right:4px"></i>{{ t("action.open") }}
+      </a>
+    </div>
+  </div>
+  <script>
+  (function() {
+    const lb   = document.getElementById('lightbox');
+    const img  = document.getElementById('lb-img');
+    const copy = document.getElementById('lb-copy');
+    const open = document.getElementById('lb-open');
+
+    function openLightbox(src) {
+      img.src = src;
+      open.href = src;
+      lb.style.display = 'flex';
+      if (window.lucide) lucide.createIcons({el: lb});
+    }
+    function closeLightbox() {
+      lb.style.display = 'none';
+      img.src = '';
+    }
+
+    document.getElementById('lb-close').addEventListener('click', closeLightbox);
+    lb.addEventListener('click', function(e) { if (e.target === lb) closeLightbox(); });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && lb.style.display !== 'none') closeLightbox(); });
+
+    copy.addEventListener('click', function() {
+      copyImage(copy, img.src);
+    });
+
+    window.openLightbox = openLightbox;
+  })();
+  </script>
+</body>
+</html>

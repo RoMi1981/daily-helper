@@ -1,0 +1,25 @@
+{% if ca_pem %}
+<div class="tls-ca-info">
+  <div class="form-group">
+    <label>CA Certificate <span class="hint">(for browser import)</span></label>
+    <textarea class="form-control monospace" rows="6" readonly id="ca-pem-display">{{ ca_pem }}</textarea>
+    <div class="input-row" style="margin-top:0.4rem">
+      <button type="button" class="btn btn-secondary btn-sm"
+              onclick="copyText(document.getElementById('ca-pem-display').value)">
+        Copy CA cert
+      </button>
+      <a href="/settings/tls/ca.crt" download="daily-helper-ca.crt" class="btn btn-secondary btn-sm">
+        Download ca.crt
+      </a>
+    </div>
+    <div class="field-hint" style="margin-top:0.75rem">
+      <strong>CN:</strong> {{ cn }} &nbsp;·&nbsp;
+      <strong>SANs:</strong> {{ sans | join(", ") }} &nbsp;·&nbsp;
+      <strong>Expires:</strong> {{ expiry }}<br><br>
+      <strong>Chrome:</strong> <code>chrome://settings/certificates</code> → Authorities → Import<br>
+      <strong>Firefox:</strong> <code>about:preferences#privacy</code> → View Certificates → Authorities<br>
+      <strong>Windows:</strong> Double-click <code>ca.crt</code> → Install into "Trusted Root Certification Authorities"
+    </div>
+  </div>
+</div>
+{% endif %}

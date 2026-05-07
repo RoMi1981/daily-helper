@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Mail Templates – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="mail" class="icon-sm"></i> {{ t("nav.mail_templates") }}</h1>
+  <div style="display:flex;align-items:center;gap:0.5rem">
+    <a href="/help/mail-templates" class="btn btn-sm" title="Help"><i data-lucide="help-circle" class="icon-xs"></i></a>
+    <a href="/mail-templates/new" class="btn btn-primary">+ {{ t("action.new") }}</a>
+  </div>
+</div>
+
+{% if saved %}
+<div class="alert alert-success">{{ t("msg.saved_template") }}</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+{% if not configured %}
+<div class="alert alert-warning">
+  {{ t("msg.no_repo") | safe }}
+</div>
+{% elif not templates %}
+<div class="alert alert-info">{{ t("empty.mail_templates") }} <a href="/mail-templates/new">Create one.</a></div>
+{% else %}
+
+<div class="module-list">
+{% for tmpl in templates %}
+<div class="card mod-card">
+  <div class="mod-card-info">
+    <div class="mod-card-title">{{ tmpl.name }}</div>
+    <div class="mod-card-meta" style="flex-direction:column;align-items:flex-start;gap:0.2rem;margin-top:0.4rem">
+      {% if tmpl.to %}
+      <div style="display:flex;align-items:center;gap:0.4rem">
+        <span><span style="opacity:0.7">To:</span> {{ tmpl.to }}</span>
+        <button class="btn btn-sm" style="padding:0.1rem 0.35rem" onclick="copyMailField(this, {{ loop.index0 }}, 'to')" title="Copy"><i data-lucide="clipboard" class="icon-xs"></i></button>
+      </div>
+      {% endif %}
+      {% if tmpl.cc %}
+      <div style="display:flex;align-items:center;gap:0.4rem">
+        <span><span style="opacity:0.7">CC:</span> {{ tmpl.cc }}</span>
+        <button class="btn btn-sm" style="padding:0.1rem 0.35rem" onclick="copyMailField(this, {{ loop.index0 }}, 'cc')" title="Copy"><i data-lucide="clipboard" class="icon-xs"></i></button>
+      </div>
+      {% endif %}
+      {% if tmpl.subject %}
+      <div style="display:flex;align-items:center;gap:0.4rem">
+        <span><span style="opacity:0.7">Subject:</span> {{ tmpl.subject }}</span>
+        <button class="btn btn-sm" style="padding:0.1rem 0.35rem" onclick="copyMailField(this, {{ loop.index0 }}, 'subject')" title="Copy"><i data-lucide="clipboard" class="icon-xs"></i></button>
+      </div>
+      {% endif %}
+      {% if tmpl.body %}
+      <details style="margin-top:0.15rem">
+        <summary style="cursor:pointer;display:flex;align-items:center;gap:0.4rem">
+          <span>{{ t("action.show_body") }}</span>
+          <button class="btn btn-sm" style="padding:0.1rem 0.35rem" onclick="event.preventDefault();copyMailField(this, {{ loop.index0 }}, 'body')" title="Copy body"><i data-lucide="clipboard" class="icon-xs"></i></button>
+        </summary>
+        <pre style="margin-top:0.4rem;font-size:0.8rem;white-space:pre-wrap;word-break:break-word;background:var(--bg-secondary);padding:0.75rem;border-radius:4px;max-height:200px;overflow-y:auto">{{ tmpl.body }}</pre>
+      </details>
+      {% endif %}
+    </div>
+  </div>
+  <div class="mod-card-actions">
+    <button class="btn btn-sm" onclick="openMailClient({{ loop.index0 }})" title="Open in mail client"><i data-lucide="mail" class="icon-xs"></i></button>
+    <a href="/mail-templates/{{ tmpl.id }}/download.eml" class="btn btn-sm" title="Download EML" download><i data-lucide="download" class="icon-xs"></i></a>
+    <a href="/mail-templates/{{ tmpl.id }}/edit" class="btn btn-sm"><i data-lucide="pencil" class="icon-xs"></i></a>
+    <a href="/mail-templates/{{ tmpl.id }}/history" class="btn btn-sm"><i data-lucide="history" class="icon-xs"></i></a>
+    <form method="post" action="/mail-templates/{{ tmpl.id }}/delete" style="margin:0"
+          onsubmit="return confirm('Delete template \'{{ tmpl.name }}\'?')">
+      <button type="submit" class="btn btn-danger btn-sm"><i data-lucide="trash-2" class="icon-xs"></i></button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+</div>
+
+<script>
+const _mailTemplates = [
+  {% for tmpl in templates %}
+  { to: {{ tmpl.to | tojson }}, cc: {{ tmpl.cc | tojson }}, subject: {{ tmpl.subject | tojson }}, body: {{ tmpl.body | tojson }} }{{ "," if not loop.last }}
+  {% endfor %}
+];
+
+function copyMailField(btn, idx, field) {
+  const text = _mailTemplates[idx][field] || "";
+  copyText(text).then(() => {
+    const orig = btn.innerHTML;
+    btn.textContent = "✓";
+    setTimeout(() => { btn.innerHTML = orig; if (window.lucide) lucide.createIcons({el: btn}); }, 1800);
+  });
+}
+
+function openMailClient(idx) {
+  const t = _mailTemplates[idx];
+  let url = "mailto:" + encodeURIComponent(t.to || "");
+  const params = [];
+  if (t.cc) params.push("cc=" + encodeURIComponent(t.cc));
+  if (t.subject) params.push("subject=" + encodeURIComponent(t.subject));
+  if (t.body) params.push("body=" + encodeURIComponent(t.body));
+  if (params.length) url += "?" + params.join("&");
+  window.location.href = url;
+}
+</script>
+
+{% endif %}
+{% endblock %}

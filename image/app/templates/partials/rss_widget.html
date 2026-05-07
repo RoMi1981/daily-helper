@@ -1,0 +1,22 @@
+{% if feed and items %}
+<div id="rss-widget" style="background:var(--bg-secondary);border:1px solid var(--border);border-radius:6px;padding:0.85rem 1.1rem;margin-bottom:1.25rem">
+  <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
+    <i data-lucide="rss" class="icon-xs" style="color:var(--accent);flex-shrink:0"></i>
+    <a href="/rss" style="font-size:0.8rem;font-weight:600;color:var(--accent);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ feed.name }}</a>
+  </div>
+  <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0.55rem">
+    {% for item in items %}
+    <li style="font-size:0.85rem;line-height:1.35">
+      <a href="{{ item.link }}" target="_blank" rel="noopener noreferrer"
+         style="color:var(--text);text-decoration:none;display:block"
+         title="{{ item.summary }}">
+        {{ item.title }}
+      </a>
+      {% if item.published %}
+      <span style="font-size:0.75rem;color:var(--text-muted)">{{ item.published }}</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}

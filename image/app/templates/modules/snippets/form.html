@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}{{ t("label.edit_snippet") if snippet else t("label.new_snippet") }} – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="code-2" class="icon-sm"></i> {{ t("label.edit_snippet") if snippet else t("label.new_snippet") }}</h1>
+</div>
+
+<form method="post" action="/snippets/{{ snippet.id + '/edit' if snippet else 'new' }}" class="entry-form" id="sn-form">
+  <div class="form-group">
+    <label>{{ t("field.title_required") }}</label>
+    <input type="text" name="title" class="form-control" required autofocus autocomplete="off"
+           value="{{ snippet.title if snippet else '' }}" placeholder="e.g. Docker cleanup, SSH tunnel, Git rebase…">
+  </div>
+  <div class="form-group">
+    <label>{{ t("field.description") }}</label>
+    <input type="text" name="description" class="form-control" autocomplete="off"
+           value="{{ snippet.description if snippet else '' }}" placeholder="Short description (optional)">
+    <p class="field-hint">{{ t("field.hint.description_snippet") }}</p>
+  </div>
+
+  <!-- Steps -->
+  <div style="margin-top:1.5rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.75rem">
+      <label style="font-weight:600;margin:0">{{ t("field.commands") }}</label>
+      <button type="button" class="btn btn-sm btn-primary" onclick="addStep()">+ Add Command</button>
+    </div>
+    <div id="steps-container" style="display:flex;flex-direction:column;gap:0.75rem">
+      {% if not snippet %}
+      <div class="step-row card" data-idx="0" style="padding:0.9rem 1.1rem">
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
+          <span style="font-size:0.8rem;color:var(--text-muted);font-weight:600">#1</span>
+          <div style="flex:1"></div>
+          <button type="button" class="btn btn-sm" onclick="moveStep(this,-1)" title="Move up">↑</button>
+          <button type="button" class="btn btn-sm" onclick="moveStep(this,1)" title="Move down">↓</button>
+          <button type="button" class="btn btn-danger btn-sm" onclick="removeStep(this)">✕</button>
+        </div>
+        <input type="text" name="step_desc_0" class="form-control"
+               style="margin-bottom:0.5rem" placeholder="Description (optional)">
+        <textarea name="step_cmd_0" class="form-control" rows="2" required
+                  placeholder="Command or code…"
+                  style="font-family:monospace;resize:vertical" autofocus></textarea>
+      </div>
+      {% elif snippet and snippet.steps %}
+      {% for step in snippet.steps %}
+      <div class="step-row card" data-idx="{{ loop.index0 }}" style="padding:0.9rem 1.1rem">
+        <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">
+          <span style="font-size:0.8rem;color:var(--text-muted);font-weight:600">#{{ loop.index }}</span>
+          <div style="flex:1"></div>
+          <button type="button" class="btn btn-sm" onclick="moveStep(this,-1)" title="Move up">↑</button>
+          <button type="button" class="btn btn-sm" onclick="moveStep(this,1)" title="Move down">↓</button>
+          <button type="button" class="btn btn-danger btn-sm" onclick="removeStep(this)">✕</button>
+        </div>
+        <input type="text" name="step_desc_{{ loop.index0 }}" class="form-control"
+               style="margin-bottom:0.5rem" placeholder="Description (optional)"
+               value="{{ step.description }}">
+        <textarea name="step_cmd_{{ loop.index0 }}" class="form-control" rows="2" required
+                  placeholder="Command or code…"
+                  style="font-family:monospace;resize:vertical">{{ step.command }}</textarea>
+      </div>
+      {% endfor %}
+      {% endif %}
+    </div>
+    <p id="no-steps-hint" style="font-size:0.85rem;color:var(--text-muted);margin-top:0.5rem{% if not snippet or snippet.steps %};display:none{% endif %}">
+      No commands yet. Add at least one.
+    </p>
+    <button type="button" class="btn btn-sm btn-secondary" onclick="addStep()" style="margin-top:0.5rem">+ Add Command</button>
+  </div>
+
+  <div class="form-actions" style="margin-top:1.5rem">
+    <button type="submit" class="btn btn-primary">{{ t("action.save") if snippet else t("action.create") }}</button>
+    {% if snippet %}
+    <a href="/snippets/{{ snippet.id }}" class="btn">{{ t("action.cancel") }}</a>
+    {% else %}
+    <a href="/snippets" class="btn">{{ t("action.cancel") }}</a>
+    {% endif %}
+  </div>
+</form>
+
+<script>
+(function() {
+  var container = document.getElementById('steps-container');
+  var hint = document.getElementById('no-steps-hint');
+
+  function renumber() {
+    var rows = container.querySelectorAll('.step-row');
+    rows.forEach(function(row, i) {
+      row.dataset.idx = i;
+      row.querySelector('span').textContent = '#' + (i + 1);
+      row.querySelector('input[type="text"]').name = 'step_desc_' + i;
+      row.querySelector('textarea').name = 'step_cmd_' + i;
+    });
+    hint.style.display = rows.length ? 'none' : '';
+  }
+
+  window.addStep = function() {
+    var idx = container.querySelectorAll('.step-row').length;
+    var div = document.createElement('div');
+    div.className = 'step-row card';
+    div.dataset.idx = idx;
+    div.style.cssText = 'padding:0.9rem 1.1rem';
+    div.innerHTML =
+      '<div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.6rem">'
+      + '<span style="font-size:0.8rem;color:var(--text-muted);font-weight:600">#' + (idx+1) + '</span>'
+      + '<div style="flex:1"></div>'
+      + '<button type="button" class="btn btn-sm" onclick="moveStep(this,-1)" title="Move up">↑</button>'
+      + '<button type="button" class="btn btn-sm" onclick="moveStep(this,1)" title="Move down">↓</button>'
+      + '<button type="button" class="btn btn-danger btn-sm" onclick="removeStep(this)">✕</button>'
+      + '</div>'
+      + '<input type="text" name="step_desc_' + idx + '" class="form-control" style="margin-bottom:0.5rem" placeholder="Description (optional)">'
+      + '<textarea name="step_cmd_' + idx + '" class="form-control" rows="2" required placeholder="Command or code…" style="font-family:monospace;resize:vertical"></textarea>';
+    container.appendChild(div);
+    div.querySelector('textarea').focus();
+    renumber();
+  };
+
+  window.removeStep = function(btn) {
+    btn.closest('.step-row').remove();
+    renumber();
+  };
+
+  window.moveStep = function(btn, dir) {
+    var row = btn.closest('.step-row');
+    var rows = Array.from(container.querySelectorAll('.step-row'));
+    var idx = rows.indexOf(row);
+    var target = rows[idx + dir];
+    if (!target) return;
+    if (dir === -1) {
+      container.insertBefore(row, target);
+    } else {
+      container.insertBefore(target, row);
+    }
+    renumber();
+  };
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}{{ note.subject or 'Note' }} – Daily Helper{% endblock %}
+
+{% block content %}
+<style>
+  @media (min-width: 769px) { .content { max-width: none !important; } }
+
+  .note-view-wrap {
+    display: flex;
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    background: var(--bg-card);
+  }
+  .note-view-wrap:hover { border-color: var(--accent); }
+
+  .note-view-gutter {
+    background: var(--bg-sidebar);
+    color: var(--text-dim);
+    font-family: monospace;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    padding: 0.6rem 0.5rem 0.6rem 0.4rem;
+    text-align: right;
+    min-width: 3rem;
+    overflow: hidden;
+    user-select: none;
+    white-space: pre;
+    border-right: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  #note-body {
+    display: block;
+    flex: 1;
+    min-width: 0;
+    font-family: monospace;
+    font-size: 0.88rem;
+    line-height: 1.6;
+    padding: 0.6rem;
+    background: var(--bg-card);
+    color: var(--text);
+    border: none;
+    resize: none;
+    overflow: hidden;
+    cursor: pointer;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+  }
+  #note-body:focus { outline: none; box-shadow: none; }
+</style>
+
+<div class="page-header">
+  <h1 style="font-size:1.3rem;margin:0"><i data-lucide="file-text" class="icon-sm"></i> {{ note.subject or '(no subject)' }}</h1>
+  <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+    <button class="btn btn-sm" onclick="window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})" title="Go to bottom">↓ End</button>
+    <a href="/notes/{{ note.id }}/edit" class="btn btn-sm">{{ t("action.edit") }}</a>
+    <a href="/notes/{{ note.id }}/history" class="btn btn-sm"><i data-lucide="history" class="icon-xs"></i> History</a>
+    <form method="post" action="/notes/{{ note.id }}/archive" style="margin:0"
+          onsubmit="return confirm('{{ t('confirm.archive_note') }}')">
+      <button type="submit" class="btn btn-sm">{{ t("action.archive") }}</button>
+    </form>
+    <form method="post" action="/notes/{{ note.id }}/delete" style="margin:0"
+          onsubmit="return confirm('{{ t('confirm.delete_note') }}')">
+      <button type="submit" class="btn btn-danger btn-sm">{{ t("action.delete") }}</button>
+    </form>
+    <a href="/notes" class="btn btn-sm">← Back</a>
+  </div>
+</div>
+
+{% if saved %}
+<div class="alert alert-success" style="margin-bottom:1rem">{{ t("msg.saved_note") }}</div>
+{% endif %}
+
+<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1rem">
+  Created {{ note.created }}{% if note.updated and note.updated != note.created %} · Updated {{ note.updated }}{% endif %}
+</div>
+
+<!-- In-note search -->
+<div style="display:flex;gap:0.5rem;margin-bottom:1rem;align-items:center;flex-wrap:wrap">
+  <input type="text" id="note-search" class="form-control" placeholder="Search in note…"
+         autocomplete="off" style="min-width:0;flex:1;max-width:320px">
+  <span id="note-search-count" style="font-size:0.8rem;color:var(--text-muted);white-space:nowrap"></span>
+  <button class="btn btn-sm" onclick="noteSearchNav(-1)" title="Previous">↑</button>
+  <button class="btn btn-sm" onclick="noteSearchNav(1)" title="Next">↓</button>
+  <button class="btn btn-sm" onclick="clearNoteSearch()">{{ t("action.clear") }}</button>
+</div>
+
+{% if line_numbers %}
+<div class="note-view-wrap" id="note-wrap">
+  <div class="note-view-gutter" id="note-gutter">1</div>
+  <textarea id="note-body" readonly>{{ note.body | e }}</textarea>
+</div>
+{% else %}
+<div class="note-view-wrap">
+  <textarea id="note-body" readonly>{{ note.body | e }}</textarea>
+</div>
+{% endif %}
+
+<div style="text-align:right;margin-top:0.75rem">
+  <button class="btn btn-sm" onclick="window.scrollTo({top:0,behavior:'smooth'})" title="Back to top">↑ Top</button>
+</div>
+
+<script>
+(function() {
+  var LINE_NUMBERS = {{ line_numbers | tojson }};
+  var scrollPos   = {{ scroll_position | tojson }};
+  var editUrl     = '/notes/{{ note.id }}/edit';
+  var ta          = document.getElementById('note-body');
+  var gutter      = LINE_NUMBERS ? document.getElementById('note-gutter') : null;
+  var searchInput = document.getElementById('note-search');
+  var countEl     = document.getElementById('note-search-count');
+  var matches     = [];
+  var matchIndex  = 0;
+
+  /* auto-size textarea to content so page scrolls */
+  function autosize() {
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+    if (gutter) gutter.style.height = ta.style.height;
+  }
+
+  /* fill gutter with line numbers */
+  if (gutter) {
+    var lines = ta.value.split('\n').length;
+    var nums = [];
+    for (var i = 1; i <= lines; i++) nums.push(i);
+    gutter.textContent = nums.join('\n');
+  }
+
+  autosize();
+
+  /* scroll to configured position */
+  window.addEventListener('load', function() {
+    if (scrollPos === 'end') window.scrollTo(0, document.body.scrollHeight);
+  });
+
+  /* double-click to edit */
+  ta.addEventListener('dblclick', function() {
+    window.getSelection().removeAllRanges();
+    window.location = editUrl;
+  });
+  if (gutter) {
+    gutter.addEventListener('dblclick', function() { window.location = editUrl; });
+  }
+
+  /* ── search using setSelectionRange ── */
+  function doSearch(q) {
+    matches = [];
+    matchIndex = 0;
+    countEl.textContent = '';
+    if (!q) return;
+    var text = ta.value.toLowerCase();
+    var qLow = q.toLowerCase();
+    var idx  = 0;
+    while ((idx = text.indexOf(qLow, idx)) !== -1) {
+      matches.push(idx);
+      idx++;
+    }
+    if (matches.length) {
+      scrollToMatch(0);
+    } else {
+      countEl.textContent = 'No matches';
+    }
+  }
+
+  function scrollToMatch(idx) {
+    matchIndex = idx;
+    var start = matches[idx];
+    ta.focus();
+    ta.setSelectionRange(start, start + searchInput.value.length);
+    countEl.textContent = (idx + 1) + ' / ' + matches.length;
+  }
+
+  window.noteSearchNav = function(dir) {
+    if (!matches.length) return;
+    matchIndex = (matchIndex + dir + matches.length) % matches.length;
+    scrollToMatch(matchIndex);
+  };
+  window.clearNoteSearch = function() {
+    searchInput.value = '';
+    doSearch('');
+    ta.setSelectionRange(0, 0);
+    searchInput.focus();
+  };
+
+  var debounce;
+  searchInput.addEventListener('input', function() {
+    clearTimeout(debounce);
+    debounce = setTimeout(function() { doSearch(searchInput.value.trim()); }, 150);
+  });
+  searchInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      noteSearchNav(e.shiftKey ? -1 : 1);
+    }
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}History: {{ entry.title }} – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+    <h1><i data-lucide="history" class="icon-sm"></i> History: {{ entry.title }}</h1>
+    <div style="display:flex;gap:0.5rem">
+      <a href="/knowledge/category/{{ entry.category }}" class="btn btn-secondary btn-sm">
+        <i data-lucide="folder" class="icon-xs"></i> {{ entry.category }}
+      </a>
+      <a href="/knowledge/entries/{{ entry.repo_id }}/{{ entry.category }}/{{ entry.slug }}"
+         class="btn btn-secondary btn-sm">
+        <i data-lucide="arrow-left" class="icon-xs"></i> Back
+      </a>
+    </div>
+  </div>
+  <div style="color:var(--text-muted);font-size:0.85rem;margin-top:0.25rem">{{ repo_name }}</div>
+</div>
+
+{% include "partials/history_view.html" %}
+{% endblock %}

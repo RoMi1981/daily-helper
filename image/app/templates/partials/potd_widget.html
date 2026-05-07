@@ -1,0 +1,27 @@
+{% if potd %}
+<div id="potd-widget" class="home-section" style="padding:0;overflow:hidden;position:relative">
+  {% if potd.ext == 'pdf' %}
+  <iframe src="/potd/{{ potd.id }}/raw{% if potd.page %}#page={{ potd.page }}{% endif %}"
+          style="width:100%;height:480px;border:none;border-radius:8px;display:block"
+          title="Picture of the Day"></iframe>
+  {% else %}
+  <img src="/potd/{{ potd.id }}/raw" alt="Picture of the Day"
+       style="width:100%;max-height:480px;object-fit:contain;border-radius:8px;display:block;background:var(--bg-secondary);cursor:zoom-in"
+       onclick="openLightbox(this.src)">
+  {% endif %}
+  <div style="position:absolute;bottom:0.5rem;right:0.5rem;display:flex;gap:0.35rem">
+    {% if potd.ext != 'pdf' %}
+    <button type="button" class="btn btn-sm" title="{{ t('action.copy_image') }}" style="opacity:0.85"
+            onclick="openLightbox('/potd/{{ potd.id }}/raw');setTimeout(function(){document.getElementById('lb-copy').click()},50)">
+      <i data-lucide="clipboard-copy" class="icon-xs"></i>
+    </button>
+    {% endif %}
+    <button type="button" class="btn btn-sm" title="Next picture" style="opacity:0.85"
+            hx-post="/potd/next"
+            hx-target="#potd-widget"
+            hx-swap="outerHTML">
+      <i data-lucide="chevron-right" class="icon-xs"></i>
+    </button>
+  </div>
+</div>
+{% endif %}

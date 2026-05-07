@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}{{ t("label.edit_message") if entry else t("label.new_message") }} – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="message-square" class="icon-sm"></i> {{ t("label.edit_message") if entry else t("label.new_message") }}</h1>
+</div>
+
+<form method="post" action="/motd/{{ entry.id + '/edit' if entry else 'new' }}" class="entry-form">
+  <div class="form-group">
+    <label>{{ t("field.message_required") }}</label>
+    <textarea name="text" class="form-control" rows="4" required autofocus
+              placeholder="e.g. Make it a great day! — An apple a day keeps the doctor away.">{{ entry.text if entry else '' }}</textarea>
+    <p class="field-hint">{{ t("field.hint.motd_text") }}</p>
+  </div>
+
+  {% if entry %}
+  <div class="form-group">
+    <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
+      <input type="checkbox" name="active" {% if entry.active %}checked{% endif %}>
+      {{ t("label.motd_active") }}
+    </label>
+    <p class="field-hint">{{ t("field.hint.motd_active") }}</p>
+  </div>
+  {% endif %}
+
+  <div class="form-actions" style="margin-top:1.25rem">
+    <button type="submit" class="btn btn-primary">{{ t("action.save") if entry else t("action.create") }}</button>
+    <a href="/motd" class="btn">{{ t("action.cancel") }}</a>
+  </div>
+</form>
+{% endblock %}

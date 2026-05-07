@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Memes – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="smile" class="icon-sm"></i> {{ t("nav.memes") }}</h1>
+  <a href="/help/memes" class="btn btn-sm" title="Help"><i data-lucide="help-circle" class="icon-xs"></i></a>
+</div>
+
+{% if saved %}
+<div class="alert alert-success" style="margin-bottom:1rem">{{ t("msg.saved_upload") }}</div>
+{% endif %}
+
+{% if not configured %}
+<div class="alert alert-warning">{{ t("msg.no_repo") | safe }}</div>
+{% else %}
+
+<div class="card" style="margin-bottom:1.5rem;padding:1rem 1.25rem">
+  <h2 style="font-size:1rem;margin-bottom:0.25rem"><i data-lucide="upload" class="icon-xs"></i> {{ t("label.add_to_collection") }}</h2>
+  <p style="font-size:0.8rem;color:var(--text-muted);margin-bottom:0.75rem">
+    Images (JPG, PNG, WebP, GIF) — one entry each. Max 25 MB.
+  </p>
+  <div style="display:flex;flex-direction:column;gap:0.75rem">
+    <form method="post" action="/memes/upload" enctype="multipart/form-data"
+          style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:flex-end">
+      <div>
+        <label class="form-label" style="font-size:0.8rem">{{ t("field.file") }}</label>
+        <input type="file" name="file" required accept=".jpg,.jpeg,.png,.webp,.gif"
+               class="form-control form-control-sm">
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm">{{ t("action.upload") }}</button>
+    </form>
+    <form method="post" action="/memes/fetch"
+          style="display:flex;flex-wrap:wrap;gap:0.75rem;align-items:flex-end">
+      <div style="flex:1;min-width:240px">
+        <label class="form-label" style="font-size:0.8rem">{{ t("field.url") }}</label>
+        <input type="url" name="url" required placeholder="https://…"
+               class="form-control form-control-sm">
+      </div>
+      <button type="submit" class="btn btn-secondary btn-sm">{{ t("action.fetch_url") }}</button>
+    </form>
+  </div>
+</div>
+
+{% if entries %}
+<div class="card">
+  <h2 style="font-size:1rem;margin-bottom:0.75rem">{{ t("label.collection_count", n=entries|length) }}</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem">
+    {% for e in entries %}
+    <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;background:var(--bg-secondary)">
+      <img src="/memes/{{ e.id }}/raw" alt="Meme"
+           style="width:100%;height:160px;object-fit:cover;display:block;cursor:zoom-in"
+           onclick="openLightbox(this.src)">
+      <div style="padding:0.5rem 0.65rem;display:flex;align-items:center;gap:0.4rem">
+        <span style="flex:1;font-size:0.78rem;color:var(--text-muted);font-family:monospace">{{ e.id }}</span>
+        <button type="button" class="btn btn-sm" title="{{ t('action.copy_image') }}"
+                onclick="copyImage(this, '/memes/{{ e.id }}/raw')">
+          <i data-lucide="clipboard-copy" class="icon-xs"></i>
+        </button>
+        <a href="/memes/{{ e.id }}/raw" target="_blank" class="btn btn-sm" title="{{ t('label.open_new_tab') }}">
+          <i data-lucide="external-link" class="icon-xs"></i>
+        </a>
+        <form method="post" action="/memes/{{ e.id }}/delete" style="display:inline"
+              onsubmit="return confirm('{{ t('confirm.remove_from_collection') }}')">
+          <button type="submit" class="btn btn-danger btn-sm" title="Delete">
+            <i data-lucide="trash-2" class="icon-xs"></i>
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% else %}
+<p class="empty-state">{{ t("empty.memes") }}</p>
+{% endif %}
+
+{% endif %}
+{% endblock %}

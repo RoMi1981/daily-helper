@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}History – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+    <h1><i data-lucide="history" class="icon-sm"></i> {{ t("nav.history") }}</h1>
+    <a href="/help/history" class="btn btn-sm" title="Help"><i data-lucide="help-circle" class="icon-xs"></i></a>
+    <div class="history-tabs">
+      {% for key, label in ranges.items() %}
+      <button class="history-tab {% if range == key %}history-tab-active{% endif %}"
+              hx-get="/history?range={{ key }}&module={{ module }}&author={{ author }}&date_from={{ date_from }}&date_to={{ date_to }}"
+              hx-target="#history-list"
+              hx-push-url="true"
+              onclick="setActiveTab(this)">
+        {{ t("history.range." ~ key) }}
+      </button>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<form method="get" action="/history" class="filter-bar" style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:flex-end;margin-bottom:1.25rem">
+  <input type="hidden" name="range" value="{{ range }}">
+  <div style="min-width:0;flex:1 1 140px">
+    <label class="form-label" style="font-size:0.8rem">{{ t("field.module") }}</label>
+    <select name="module" class="form-control form-control-sm" onchange="this.form.submit()">
+      <option value="">{{ t("label.all_modules") }}</option>
+      {% for key, label in module_labels.items() %}
+      <option value="{{ key }}" {% if module == key %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div style="min-width:0;flex:1 1 140px">
+    <label class="form-label" style="font-size:0.8rem">{{ t("field.author") }}</label>
+    <select name="author" class="form-control form-control-sm" onchange="this.form.submit()">
+      <option value="">{{ t("label.all_authors") }}</option>
+      {% for a in authors %}
+      <option value="{{ a }}" {% if author == a %}selected{% endif %}>{{ a }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div style="min-width:0;flex:1 1 120px">
+    <label class="form-label" style="font-size:0.8rem">{{ t("field.from") }}</label>
+    <input type="date" name="date_from" value="{{ date_from }}" class="form-control form-control-sm" onchange="this.form.submit()">
+  </div>
+  <div style="min-width:0;flex:1 1 120px">
+    <label class="form-label" style="font-size:0.8rem">{{ t("field.to") }}</label>
+    <input type="date" name="date_to" value="{{ date_to }}" class="form-control form-control-sm" onchange="this.form.submit()">
+  </div>
+  {% if module or author or date_from or date_to %}
+  <a href="/history?range={{ range }}" class="btn btn-sm btn-secondary" style="align-self:flex-end">✕ {{ t("action.clear") }}</a>
+  {% endif %}
+</form>
+
+<div id="history-list">
+  {% include "modules/history/_list.html" %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function setActiveTab(btn) {
+  document.querySelectorAll('.history-tab').forEach(b => b.classList.remove('history-tab-active'));
+  btn.classList.add('history-tab-active');
+}
+</script>
+{% endblock %}

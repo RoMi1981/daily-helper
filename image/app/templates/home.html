@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% block title %}Daily Helper{% endblock %}
+{% block content_class %}content-wide{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="calendar-days" class="icon-sm"></i> Daily Helper</h1>
+</div>
+
+<div class="home-layout">
+
+  <!-- LEFT: stats + sections -->
+  <div class="home-main">
+    {% set _m = modules if modules is defined else {} %}
+    {% if not configured %}
+    <div class="alert alert-warning">
+      {{ t("msg.no_repo") | safe }}
+    </div>
+    {% endif %}
+
+    <div class="home-stats">
+
+      <!-- Module stats -->
+      {% set _m = modules if modules is defined else get_modules() %}
+      {% set _total = namespace(n=0) %}
+      <div class="home-stat-grid">
+        {% if _m.get('appointments', true) %}
+        {% set _total.n = _total.n + appointment_count %}
+        <a href="/appointments" class="home-stat-card">
+          <div class="home-stat-icon"><i data-lucide="calendar-days"></i></div>
+          <div class="home-stat-value">{{ appointment_count }}</div>
+          <div class="home-stat-label">{{ t("home.stat.appointments") }}</div>
+        </a>
+        {% endif %}
+        {% if _m.get('knowledge', true) %}
+        {% set _total.n = _total.n + entry_count %}
+        <a href="/knowledge" class="home-stat-card">
+          <div class="home-stat-icon"><i data-lucide="book-open"></i></div>
+          <div class="home-stat-value">{{ entry_count }}</div>
+          <div class="home-stat-label">{{ t("home.stat.knowledge") }}</div>
+        </a>
+        {% endif %}
+        {% if _m.get('links', true) %}
+        {% set _total.n = _total.n + link_count %}
+        <a href="/links" class="home-stat-card">
+          <div class="home-stat-icon"><i data-lucide="link-2"></i></div>
+          <div class="home-stat-value">{{ link_count }}</div>
+          <div class="home-stat-label">{{ t("home.stat.links") }}</div>
+        </a>
+        {% endif %}
+        {% if _m.get('mail_templates', true) %}
+        {% set _total.n = _total.n + mail_template_count %}
+        <a href="/mail-templates" class="home-stat-card">
+          <div class="home-stat-icon"><i data-lucide="mail"></i></div>
+          <div class="home-stat-value">{{ mail_template_count }}</div>
+          <div class="home-stat-label">{{ t("home.stat.mail_templates") }}</div>
+        </a>
+        {% endif %}
+        {% if _m.get('motd', true) %}
+        {% set _total.n = _total.n + motd_count %}
+        <a href="/motd" class="home-stat-card">
+          <div class="home-stat-icon"><i data-lucide="message-square"></i></div>
+          <div class="home-stat-value">{{ motd_count }}</div>
+          <div class="home-stat-label">{{ t("home.stat.motd") }}</div>
+        </a>
+        {% endif %}
+        {% if _m.get('notes', true) %}
+        {% set _total.n = _total.n + note_count %}
+        <a href="/notes" class="home-stat-card">
+          <div class="home-stat-icon"><i data-lucide="file-text"></i></div>
+          <div class="home-stat-value">{{ note_count }}</div>
+          <div class="home-stat-label">{{ t("home.stat.notes") }}</div>
+        </a>
+        {% endif %}
+        {% if _m.get('potd', true) %}
+        {% set _total.n = _total.n + potd_count %}
+        <a href="/potd" class="home-stat-card">
+          <div class="home-stat-icon"><i data-lucide="image"></i></div>
+          <div class="home-stat-value">{{ potd_count }}</div>
+          <div class="home-stat-label">{{ t("home.stat.potd") }}</div>
+        </a>
+        {% endif %}
+        {% if _m.get('memes', true) %}
+        {% set _total.n = _total.n + meme_count %}
+        <a href="/memes" class="home-stat-card">
+          <div class="home-stat-icon"><i data-lucide="smile"></i></div>
+          <div class="home-stat-value">{{ meme_count }}</div>
+          <div class="home-stat-label">{{ t("home.stat.memes") }}</div>
+        </a>
+        {% endif %}
+        {% if _m.get('rss', true) %}
+        {% set _total.n = _total.n + rss_feed_count %}
+        <a href="/rss" class="home-stat-card">
+          <div class="home-stat-icon"><i data-lucide="rss"></i></div>
+          <div class="home-stat-value">{{ rss_feed_count }}</div>
+          <div class="home-stat-label">{{ t("home.stat.rss") }}</div>
+        </a>
+        {% endif %}
+        {% if _m.get('runbooks', true) %}
+        {% set _total.n = _total.n + runbook_count %}
+        <a href="/runbooks" class="home-stat-card">
+          <div class="home-stat-icon"><i data-lucide="list-checks"></i></div>
+          <div class="home-stat-value">{{ runbook_count }}</div>
+          <div class="home-stat-label">{{ t("home.stat.runbooks") }}</div>
+        </a>
+        {% endif %}
+        {% if _m.get('snippets', true) %}
+        {% set _total.n = _total.n + snippet_count %}
+        <a href="/snippets" class="home-stat-card">
+          <div class="home-stat-icon"><i data-lucide="code-2"></i></div>
+          <div class="home-stat-value">{{ snippet_count }}</div>
+          <div class="home-stat-label">{{ t("home.stat.snippets") }}</div>
+        </a>
+        {% endif %}
+        {% if _m.get('tasks', true) %}
+        {% set _total.n = _total.n + task_count %}
+        <a href="/tasks" class="home-stat-card">
+          <div class="home-stat-icon"><i data-lucide="check-square-2"></i></div>
+          <div class="home-stat-value">{{ task_count }}</div>
+          <div class="home-stat-label">{{ t("home.stat.tasks") }}</div>
+        </a>
+        {% endif %}
+        {% if _m.get('ticket_templates', true) %}
+        {% set _total.n = _total.n + ticket_template_count %}
+        <a href="/ticket-templates" class="home-stat-card">
+          <div class="home-stat-icon"><i data-lucide="ticket"></i></div>
+          <div class="home-stat-value">{{ ticket_template_count }}</div>
+          <div class="home-stat-label">{{ t("home.stat.ticket_templates") }}</div>
+        </a>
+        {% endif %}
+        {% if _m.get('vacations', true) %}
+        {% set _total.n = _total.n + vacation_count %}
+        <a href="/vacations" class="home-stat-card">
+          <div class="home-stat-icon"><i data-lucide="palmtree"></i></div>
+          <div class="home-stat-value">{{ vacation_count }}</div>
+          <div class="home-stat-label">{{ t("home.stat.vacations") }}</div>
+        </a>
+        {% endif %}
+        <div class="home-stat-card">
+          <div class="home-stat-icon"><i data-lucide="database"></i></div>
+          <div class="home-stat-value">{{ repo_count }}</div>
+          <div class="home-stat-label">{{ t("home.stat.repos") }}</div>
+        </div>
+        <div class="home-stat-card">
+          <div class="home-stat-icon"><i data-lucide="sigma"></i></div>
+          <div class="home-stat-value">{{ _total.n }}</div>
+          <div class="home-stat-label">{{ t("home.stat.total") }}</div>
+        </div>
+      </div>
+
+      <!-- Repos -->
+      {% if repos %}
+      <div class="home-section">
+        <h2>{{ t("home.stat.repos") }}</h2>
+        <ul class="home-repo-list">
+          {% for repo in repos %}
+          <li class="home-repo-item" {% if not repo.get('enabled', true) %}style="opacity:0.5"{% endif %}>
+            <span class="home-repo-name">{{ repo.name }}</span>
+            {% if not repo.get('enabled', true) %}
+            <span class="home-repo-badge" style="background:var(--text-muted);color:#fff">{{ t("home.repo.disabled") }}</span>
+            {% elif repo.permissions and repo.permissions.write %}
+            <span class="home-repo-badge home-repo-badge-write">{{ t("home.repo.write") }}</span>
+            {% else %}
+            <span class="home-repo-badge home-repo-badge-read">{{ t("home.repo.read_only") }}</span>
+            {% endif %}
+            {% if repo.ca_cert %}<span class="repo-feature-badge" title="Custom CA certificate configured"><i data-lucide="shield" class="icon-xs"></i> CA</span>{% endif %}
+            {% if repo.gpg_key %}<span class="repo-feature-badge" title="GPG commit signing configured">✍️ GPG</span>{% endif %}
+            {% if repo.git_user_name or repo.git_user_email %}<span class="repo-feature-badge" title="Custom git identity: {{ repo.git_user_name }} &lt;{{ repo.git_user_email }}&gt;">👤 {{ t("home.repo.identity") }}</span>{% endif %}
+            {% set _sz = repo_sizes.get(repo.id, 0) %}
+            {% if _sz %}
+            {% if _sz >= 1073741824 %}{% set _szlabel = "%.1f GB" | format(_sz / 1073741824) %}
+            {% elif _sz >= 1048576 %}{% set _szlabel = "%.1f MB" | format(_sz / 1048576) %}
+            {% elif _sz >= 1024 %}{% set _szlabel = "%.0f KB" | format(_sz / 1024) %}
+            {% else %}{% set _szlabel = _sz ~ " B" %}{% endif %}
+            <span class="repo-feature-badge" title="Local clone size on disk" style="color:var(--text-muted)"><i data-lucide="hard-drive" class="icon-xs"></i> {{ _szlabel }}</span>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+
+      <!-- Favorites -->
+      <div class="home-section"
+           hx-get="/api/home/favorites"
+           hx-trigger="load"
+           hx-swap="innerHTML">
+        <p style="color:var(--text-muted);font-size:0.85rem">{{ t("home.loading_favorites") }}</p>
+      </div>
+
+      <!-- Recent activity -->
+      <div class="home-section"
+           hx-get="/api/home/recent"
+           hx-trigger="load"
+           hx-swap="innerHTML">
+        <p style="color:var(--text-muted);font-size:0.85rem">{{ t("home.loading_activity") }}</p>
+      </div>
+
+      <!-- System -->
+      <div class="home-section">
+        <h2>{{ t("settings.section.system") }}</h2>
+        <ul class="home-system-list">
+          <li>Redis: {% if redis_connected %}<span class="badge-ok">{{ t("home.redis.connected") }}</span>{% else %}<span class="badge-off">{{ t("home.redis.unavailable") }}</span>{% endif %}{% if cache_stats %} — <code>{{ cache_stats.key_count }}</code> {{ t("home.redis.keys") }}{% if cache_stats.hit_rate is not none %} · <code>{{ cache_stats.hit_rate }}%</code> {{ t("home.redis.hit_rate") }}{% endif %}{% if cache_stats.breakdown %}<br><span style="font-size:0.78rem;color:var(--text-muted)">{% for label, count in cache_stats.breakdown.items() %}<code>{{ label }}:{{ count }}</code> {% endfor %}</span>{% endif %}{% endif %}</li>
+          {% if tmpfs_info %}
+          {% set _used = tmpfs_info.used %}
+          {% set _total = tmpfs_info.total %}
+          {% set _pct = ((_used / _total) * 100) | round | int if _total else 0 %}
+          {% if _total >= 1073741824 %}{% set _tlabel = "%.1f GB" | format(_total / 1073741824) %}
+          {% elif _total >= 1048576 %}{% set _tlabel = "%.0f MB" | format(_total / 1048576) %}
+          {% else %}{% set _tlabel = "%.0f KB" | format(_total / 1024) %}{% endif %}
+          {% if _used >= 1073741824 %}{% set _ulabel = "%.1f GB" | format(_used / 1073741824) %}
+          {% elif _used >= 1048576 %}{% set _ulabel = "%.0f MB" | format(_used / 1048576) %}
+          {% else %}{% set _ulabel = "%.0f KB" | format(_used / 1024) %}{% endif %}
+          <li>
+            /tmp: {{ _ulabel }} / {{ _tlabel }} ({{ _pct }}%)
+            <div style="height:4px;background:var(--border);border-radius:2px;margin-top:3px;overflow:hidden">
+              <div style="height:100%;width:{{ [_pct,100]|min }}%;background:{% if _pct > 85 %}var(--danger,#e53){% elif _pct > 65 %}#f80{% else %}var(--accent){% endif %};border-radius:2px;transition:width .3s"></div>
+            </div>
+          </li>
+          {% endif %}
+          <li>{{ t("home.version") }}: <code>{{ app_version }}</code></li>
+        </ul>
+      </div>
+
+    </div>
+  </div><!-- /.home-main -->
+
+  <!-- RIGHT: Vacation countdown + RSS + MOTD + PotD + Meme -->
+  <div class="home-sidebar">
+    {% if _m.get('vacations', true) and next_vacation %}
+    <div style="padding:0.75rem 1rem;background:var(--card-bg);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:0.75rem">
+      <div style="font-size:0.95rem;font-weight:600;color:var(--accent)">
+        {% if days_until_next_vacation == 0 %}{{ t("home.vacation.today") }}{% elif days_until_next_vacation == 1 %}{{ t("home.vacation.one_day") }}{% else %}{{ t("home.vacation.days", n=days_until_next_vacation) }}{% endif %}
+      </div>
+      <a href="/vacations" style="color:var(--text-muted);font-size:0.8rem;text-decoration:none">
+        {{ next_vacation.start_date }}{% if next_vacation.start_date != next_vacation.end_date %} – {{ next_vacation.end_date }}{% endif %}{% if next_vacation.note %} · {{ next_vacation.note }}{% endif %}
+      </a>
+    </div>
+    {% endif %}
+    <div hx-get="/api/home/rss" hx-trigger="load" hx-swap="innerHTML"></div>
+    <div hx-get="/api/home/motd" hx-trigger="load" hx-swap="innerHTML"></div>
+    <div hx-get="/api/home/potd" hx-trigger="load" hx-swap="innerHTML"></div>
+    <div hx-get="/api/home/meme" hx-trigger="load" hx-swap="innerHTML"></div>
+  </div>
+
+</div><!-- /.home-layout -->
+{% endblock %}

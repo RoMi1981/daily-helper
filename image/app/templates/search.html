@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}{% if q %}Search: {{ q }}{% else %}Search{% endif %} – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="search" class="icon-sm"></i> {{ t("nav.search") }}</h1>
+</div>
+
+<form method="get" action="/search">
+  <div style="display:flex;gap:0.5rem;margin-bottom:0.6rem">
+    <input type="text" name="q" value="{{ q }}" placeholder="{{ t('label.search_everything') }}"
+           class="form-control" style="flex:1" autofocus autocomplete="off" id="global-search-input">
+    {% if q or date_from or date_to %}
+    <a href="/search" class="btn" title="{{ t('action.clear') }}">✕</a>
+    {% endif %}
+    <button type="submit" class="btn btn-primary">{{ t("action.search") }}</button>
+  </div>
+  <div style="display:flex;gap:0.75rem;align-items:center;flex-wrap:wrap;margin-bottom:1.5rem">
+    <label style="font-size:0.85rem;color:var(--text-muted);white-space:nowrap">{{ t("label.created_from") }}</label>
+    <input type="date" name="date_from" value="{{ date_from }}" class="form-control" style="max-width:11rem">
+    <label style="font-size:0.85rem;color:var(--text-muted);white-space:nowrap">{{ t("label.date_to") }}</label>
+    <input type="date" name="date_to" value="{{ date_to }}" class="form-control" style="max-width:11rem">
+    {% if date_from or date_to %}
+    <a href="/search?q={{ q }}" style="font-size:0.82rem;color:var(--text-muted)">{{ t("action.clear_dates") }}</a>
+    {% endif %}
+  </div>
+</form>
+
+{% if q %}
+  {% if groups %}
+  <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:1.25rem">
+    {{ total }} result{{ 's' if total != 1 }} across {{ groups | length }} module{{ 's' if groups | length != 1 }} for <strong>"{{ q }}"</strong>
+    {%- if date_from or date_to %} (filtered by date){% endif %}
+  </p>
+
+  {% for group in groups %}
+  <div style="margin-bottom:1.75rem">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+      <h2 style="font-size:1rem;margin:0;font-weight:600"><i data-lucide="{{ group.icon }}" class="icon-xs icon-accent"></i> {{ group.label }}</h2>
+      <a href="{{ group.url }}" style="font-size:0.8rem;color:var(--accent)">{{ t("action.view_all") }}</a>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:0.4rem">
+    {% for item in group.results %}
+    <a href="{{ item.url }}" class="card" style="padding:0.6rem 1rem;text-decoration:none;color:var(--text);display:block"
+       {% if item.external %}target="_blank" rel="noopener noreferrer"{% endif %}>
+      <div style="display:flex;align-items:baseline;gap:0.75rem">
+        <span style="font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ item.title }}</span>
+        {% if item.subtitle %}
+        <span style="font-size:0.8rem;color:var(--text-muted);flex-shrink:0;max-width:40%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ item.subtitle }}</span>
+        {% endif %}
+        {% if item.external %}<i data-lucide="external-link" class="icon-xs" style="color:var(--text-muted);flex-shrink:0"></i>{% endif %}
+      </div>
+      {% if item.snippet %}
+      <div class="search-snippet">{{ item.snippet | safe }}</div>
+      {% endif %}
+    </a>
+    {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+
+  {% else %}
+  <div class="alert alert-info">{{ t("empty.search", q=q) }}</div>
+  {% endif %}
+{% else %}
+<p style="color:var(--text-muted)">{{ t("empty.search_hint") }}</p>
+{% endif %}
+{% endblock %}

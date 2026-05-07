@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Notes – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="file-text" class="icon-sm"></i> {{ t("nav.notes") }}</h1>
+  <div style="display:flex;align-items:center;gap:0.5rem">
+    <a href="/help/notes" class="btn btn-sm" title="Help"><i data-lucide="help-circle" class="icon-xs"></i></a>
+    <a href="/notes/new" class="btn btn-primary">{{ t("action.new_note") }}</a>
+  </div>
+</div>
+
+{% if saved %}
+<div class="alert alert-success">{{ t("msg.saved_note") }}</div>
+{% endif %}
+
+{% if not configured %}
+<div class="alert alert-warning">
+  {{ t("msg.no_repo") | safe }}
+</div>
+{% else %}
+
+<div style="margin-bottom:1rem;display:flex;gap:0.5rem;align-items:center">
+  <a href="/notes/archive" class="btn btn-sm">{{ t("action.archive") }}</a>
+  <button type="button" class="btn btn-sm bulk-select-btn" onclick="toggleBulk('notes-bulk')" id="notes-select-btn">{{ t("action.select") }}</button>
+</div>
+
+<form method="get" action="/notes" style="margin-bottom:1.25rem;display:flex;gap:0.5rem">
+  <input type="text" name="q" id="search-input" class="form-control" value="{{ q }}"
+         placeholder="Search notes…" autocomplete="off" style="flex:1">
+  <button type="submit" class="btn">{{ t("action.search") }}</button>
+  {% if q %}<a href="/notes" class="btn">{{ t("action.clear") }}</a>{% endif %}
+</form>
+
+{% if not notes %}
+<div class="alert alert-info">
+  {% if q %}{{ t("empty.notes_search", q=q) }}{% else %}{{ t("empty.notes") }} <a href="/notes/new">Create one.</a>{% endif %}
+</div>
+{% else %}
+
+<form id="notes-bulk" method="post" action="/notes/bulk-delete">
+<div class="module-list">
+{% for n in notes %}
+<div class="module-list-row">
+  <input type="checkbox" name="ids" value="{{ n.id }}" class="bulk-checkbox" onchange="bulkChanged('notes-bulk')">
+  <div class="card mod-card" style="flex:1;min-width:0">
+    <a href="/notes/{{ n.id }}" class="mod-card-info">
+      <div class="mod-card-title">{{ n.subject or '(no subject)' }}</div>
+      <div class="mod-card-meta">
+        <span>Updated {{ n.updated or n.created }}</span>
+        {% if n.body %}<span>{{ n.body | truncate(80, true, '…') }}</span>{% endif %}
+      </div>
+    </a>
+    <div class="mod-card-actions">
+      <button type="button" class="btn btn-sm fav-btn {% if n.id in favorite_ids %}fav-active{% endif %}" title="{% if n.id in favorite_ids %}Remove from favorites{% else %}Add to favorites{% endif %}"
+              hx-post="/api/favorites/toggle" hx-target="this" hx-swap="outerHTML"
+              hx-vals='{"module":"notes","entry_id":"{{ n.id }}","title":"{{ n.subject | e }}","url":"/notes/{{ n.id }}"}'>
+        <i data-lucide="star" class="icon-xs"></i>
+      </button>
+    </div>
+  </div>
+</div>
+{% endfor %}
+</div>
+<div class="bulk-toolbar" id="notes-bulk-toolbar">
+  <span class="bulk-count" id="notes-bulk-count"></span>
+  <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('{{ t('confirm.delete_selected') }}')">
+    <i data-lucide="trash-2" class="icon-xs"></i> Delete selected
+  </button>
+  <button type="button" class="btn btn-sm" onclick="toggleBulk('notes-bulk')">{{ t("action.cancel") }}</button>
+</div>
+</form>
+
+{% endif %}
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleBulk(formId) {
+  const form = document.getElementById(formId);
+  const isActive = form.classList.toggle('bulk-mode');
+  const toolbar = document.getElementById(formId + '-toolbar');
+  const btn = document.getElementById(formId.replace('-bulk','') + '-select-btn');
+  if (!isActive) {
+    form.querySelectorAll('.bulk-checkbox').forEach(cb => cb.checked = false);
+    if (toolbar) toolbar.classList.remove('visible');
+  }
+  if (btn) btn.textContent = isActive ? 'Cancel' : 'Select';
+}
+function bulkChanged(formId) {
+  const form = document.getElementById(formId);
+  const checked = form.querySelectorAll('.bulk-checkbox:checked').length;
+  const toolbar = document.getElementById(formId + '-toolbar');
+  const countEl = document.getElementById(formId + '-count');
+  if (toolbar) toolbar.classList.toggle('visible', checked > 0);
+  if (countEl) countEl.textContent = checked + ' selected';
+}
+</script>
+{% endblock %}

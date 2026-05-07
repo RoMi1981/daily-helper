@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Edit Vacation Request – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="pencil" class="icon-sm"></i> {{ t("label.edit_vacation_request") }}</h1>
+</div>
+
+<form method="post" action="/vacations/{{ entry.id }}/edit" class="entry-form">
+  <div class="form-group">
+    <label>{{ t("field.from_required") }}</label>
+    <input type="date" name="start_date" class="form-control" value="{{ entry.start_date }}" required style="max-width:14rem">
+  </div>
+  <div class="form-group">
+    <label>{{ t("field.to_required") }}</label>
+    <input type="date" name="end_date" class="form-control" value="{{ entry.end_date }}" required style="max-width:14rem">
+    <p class="field-hint">{{ t("field.hint.vacation_dates") }}</p>
+  </div>
+  <div class="form-group">
+    <label>{{ t("field.note") }}</label>
+    <input type="text" name="note" class="form-control" value="{{ entry.note }}">
+    <p class="field-hint">{{ t("field.hint.vacation_note") }}</p>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+    <a href="/vacations" class="btn btn-secondary">{{ t("action.cancel") }}</a>
+  </div>
+</form>
+{% endblock %}

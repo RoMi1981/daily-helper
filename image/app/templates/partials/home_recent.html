@@ -1,0 +1,44 @@
+{% if not added and not modified %}
+<p class="empty-state">{{ t("empty.recent") }}</p>
+{% else %}
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem">
+  <div>
+    <h2 style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.75rem">
+      <i data-lucide="plus-circle" class="icon-xs"></i> {{ t("home.new_entries") }}
+    </h2>
+    {% if added %}
+    <ul class="home-activity-list">
+      {% for ev in added %}
+      <li class="home-activity-item">
+        <a href="{{ ev.url }}" class="home-activity-title">{{ ev.title }}</a>
+        <span class="home-activity-meta">{{ ev.category }} · {{ ev.ts | strftime('%d.%m.%Y') }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty-state" style="font-size:0.85rem">{{ t("empty.recent_new") }}</p>
+    {% endif %}
+  </div>
+  <div>
+    <h2 style="font-size:0.8rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.75rem">
+      <i data-lucide="pencil" class="icon-xs"></i> {{ t("home.recent_changes") }}
+    </h2>
+    {% if modified %}
+    <ul class="home-activity-list">
+      {% for ev in modified %}
+      <li class="home-activity-item">
+        {% if ev.deleted %}
+        <span class="home-activity-title" style="text-decoration:line-through;color:var(--text-muted)">{{ ev.title }}</span>
+        {% else %}
+        <a href="{{ ev.url }}" class="home-activity-title">{{ ev.title }}</a>
+        {% endif %}
+        <span class="home-activity-meta">{{ ev.category }} · {{ ev.ts | strftime('%d.%m.%Y') }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="empty-state" style="font-size:0.85rem">{{ t("empty.recent_changes") }}</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}

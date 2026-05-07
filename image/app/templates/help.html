@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ module_label }} Help – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="help-circle" class="icon-sm"></i> {{ module_label }} Help</h1>
+  {% if back_url %}
+  <a href="{{ back_url }}" class="btn btn-secondary btn-sm">← Back</a>
+  {% endif %}
+</div>
+
+<div class="entry-content markdown-body" style="max-width:48rem">
+  {{ html | safe }}
+</div>
+{% endblock %}

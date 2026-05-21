@@ -1,0 +1,16 @@
+{% if tasks_overdue %}
+<ul class="widget-task-list">
+  {% for task in tasks_overdue %}
+  <li class="widget-task-item">
+    <a href="/tasks" class="widget-task-title widget-task-overdue">{{ task.title }}</a>
+    <span class="widget-task-due widget-task-overdue">{{ task.due_date }}</span>
+    {% if task.priority == "high" %}
+    <span class="priority-badge priority-high" style="font-size:0.7rem;padding:0.1rem 0.35rem">High</span>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.no_overdue_tasks") }}</p>
+{% endif %}
+<a href="/tasks" class="widget-footer-link">{{ t("widget.footer.all_tasks") }}</a>

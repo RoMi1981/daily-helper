@@ -1,0 +1,18 @@
+{% if next_vacation %}
+<div class="widget-next-vac">
+  <div class="widget-next-vac-date">{{ next_vacation.start_date }}</div>
+  {% if next_vacation_days == 0 %}
+  <div class="widget-next-vac-countdown">Starts today</div>
+  {% elif next_vacation_days == 1 %}
+  <div class="widget-next-vac-countdown">Starts tomorrow</div>
+  {% else %}
+  <div class="widget-next-vac-countdown"><strong>{{ next_vacation_days }}</strong> work days to go</div>
+  {% endif %}
+  {% if next_vacation.end_date and next_vacation.end_date != next_vacation.start_date %}
+  <div class="widget-next-vac-range" style="font-size:0.8rem;color:var(--text-dim)">until {{ next_vacation.end_date }}</div>
+  {% endif %}
+</div>
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.no_next_vacation") }}</p>
+{% endif %}
+<a href="/vacations" class="widget-footer-link">{{ t("widget.footer.all_vacations") }}</a>

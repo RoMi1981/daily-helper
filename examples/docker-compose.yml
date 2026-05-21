@@ -1,0 +1,41 @@
+services:
+  app:
+    image: ghcr.io/romi1981/daily-helper:latest
+    container_name: daily-helper
+    restart: unless-stopped
+    depends_on:
+      - redis
+    ports:
+      - "8080:8080"
+    environment:
+      - DATA_DIR=/data
+      - REDIS_URL=redis://redis:6379
+      # Optional: pre-set a Fernet encryption key for secrets.
+      # Generate with: python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+      # If not set, a key is auto-generated and stored in /data/.secret_key
+      # - SECRET_KEY=your-fernet-key-here
+      #
+      # Optional: tune git pull frequency (default: 300 seconds)
+      # - PULL_THROTTLE_SECONDS=300
+    volumes:
+      - data:/data
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+    healthcheck:
+      test: ["CMD", "sh", "-c", "curl -fs http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    container_name: daily-helper-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+
+volumes:
+  data:
+  redis-data:

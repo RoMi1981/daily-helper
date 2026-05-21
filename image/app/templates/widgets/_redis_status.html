@@ -1,0 +1,23 @@
+{% set r = redis_status %}
+{% if r.connected %}
+  <div style="display:flex;align-items:center;gap:0.5rem;margin-bottom:0.5rem">
+    <span class="status-badge status-ok">{{ t("widget.redis.connected") }}</span>
+    <span class="hint">{{ r.key_count }} key{% if r.key_count != 1 %}s{% endif %}{% if r.hit_rate is not none %} · {{ r.hit_rate }}% {{ t("widget.redis.hits") }}{% endif %}</span>
+  </div>
+  {% if r.breakdown %}
+  <div style="display:flex;flex-direction:column;gap:0.2rem">
+    {% for label, count in r.breakdown.items() %}
+    <div style="display:flex;justify-content:space-between;font-size:0.8rem">
+      <span class="hint">{{ label }}</span>
+      <span style="font-variant-numeric:tabular-nums">{{ count }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+{% else %}
+  <div style="display:flex;align-items:center;gap:0.5rem">
+    <span class="status-badge status-error">{{ t("widget.redis.offline") }}</span>
+    <span class="hint">{{ t("widget.redis.not_connected") }}</span>
+  </div>
+{% endif %}
+<a href="/settings" class="widget-footer-link">{{ t("widget.footer.settings") }}</a>

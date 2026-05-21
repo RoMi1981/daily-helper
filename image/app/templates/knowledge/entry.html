@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}{{ entry.title }} – Daily Helper{% endblock %}
+
+{% block content %}
+<article class="entry-view">
+  <div class="entry-meta">
+    <a href="/knowledge/category/{{ entry.category }}" class="breadcrumb">📁 {{ entry.category }}</a>
+    <span class="repo-badge">{{ repo_name }}</span>
+    {% if entry.created %}
+    <span class="entry-date">{{ entry.created }}</span>
+    {% endif %}
+  </div>
+
+  <h1>{{ entry.title }}</h1>
+
+  <div class="entry-actions">
+    <a href="/knowledge/entries/{{ entry.repo_id }}/{{ entry.category }}/{{ entry.slug }}/history"
+       class="btn btn-secondary btn-sm"><i data-lucide="history" class="icon-xs"></i> {{ t("nav.history") }}</a>
+    {% if writable %}
+    <a href="/knowledge/entries/{{ entry.repo_id }}/{{ entry.category }}/{{ entry.slug }}/edit"
+       class="btn btn-secondary btn-sm">{{ t("action.edit") }}</a>
+    {% set repo_id = entry.repo_id %}
+    {% set category = entry.category %}
+    {% set slug = entry.slug %}
+    {% set pinned = entry.pinned %}
+    {% include "partials/pin_button.html" %}
+    <form action="/knowledge/entries/{{ entry.repo_id }}/{{ entry.category }}/{{ entry.slug }}/delete"
+          method="post" style="display:inline"
+          onsubmit="return confirm('{{ t('confirm.delete_entry') }}')">
+      <button type="submit" class="btn btn-danger btn-sm">{{ t("action.delete") }}</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="markdown-body">
+    {{ entry.html | safe }}
+  </div>
+
+  {% if entry.attachments or writable %}
+  <div class="entry-attachments">
+    <h3><i data-lucide="paperclip" class="icon-xs"></i> {{ t("label.attachments") }}</h3>
+
+    {% if entry.attachments %}
+    <ul class="attachment-list">
+      {% for fname in entry.attachments %}
+      <li class="attachment-item">
+        <a href="/knowledge/entries/{{ entry.repo_id }}/{{ entry.category }}/{{ entry.slug }}/attachments/{{ fname }}"
+           class="attachment-link">
+          <i data-lucide="file" class="icon-xs"></i> {{ fname }}
+        </a>
+        {% if writable %}
+        <form action="/knowledge/entries/{{ entry.repo_id }}/{{ entry.category }}/{{ entry.slug }}/attachments/{{ fname }}/delete"
+              method="post" style="display:inline"
+              onsubmit="return confirm('Delete attachment {{ fname }}?')">
+          <button type="submit" class="btn btn-danger btn-sm">×</button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+
+    {% if writable %}
+    <form action="/knowledge/entries/{{ entry.repo_id }}/{{ entry.category }}/{{ entry.slug }}/attachments"
+          method="post" enctype="multipart/form-data" class="attachment-upload">
+      <input type="file" name="file" id="attachment-file" required style="display:none"
+             onchange="this.form.submit()">
+      <label for="attachment-file" class="btn btn-secondary btn-sm" style="cursor:pointer">
+        <i data-lucide="upload" class="icon-xs"></i> Upload file
+      </label>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
+</article>
+
+<script>
+document.querySelectorAll('.markdown-body pre').forEach(pre => {
+  const btn = document.createElement('button');
+  btn.className = 'copy-btn';
+  btn.textContent = 'Copy';
+  btn.addEventListener('click', () => {
+    const code = pre.querySelector('code');
+    copyText(code ? code.innerText : pre.innerText).then(() => {
+      btn.textContent = 'Copied!';
+      setTimeout(() => btn.textContent = 'Copy', 1500);
+    });
+  });
+  pre.style.position = 'relative';
+  pre.appendChild(btn);
+});
+</script>
+{% endblock %}

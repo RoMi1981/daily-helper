@@ -1,0 +1,10 @@
+{% if app_version_info %}
+<div style="text-align:center;padding:0.25rem 0">
+  <code style="font-size:1rem;font-weight:700;letter-spacing:0.05em">{{ app_version_info.version }}</code>
+  {% if app_version_info.commit and app_version_info.commit != app_version_info.version %}
+  <div class="hint" style="font-size:0.75rem;margin-top:0.3rem">{{ app_version_info.commit }}</div>
+  {% endif %}
+</div>
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.unavailable") }}</p>
+{% endif %}

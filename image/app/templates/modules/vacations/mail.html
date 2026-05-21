@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Mail – {{ entry.start_date }} – {{ entry.end_date }} – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1>📧 {{ t("label.vacation_mail") }}</h1>
+  <a href="/vacations" class="btn btn-secondary btn-sm">← Back</a>
+</div>
+
+<div class="form-section" style="max-width:680px">
+  <p style="color:var(--text-muted);margin-bottom:1.25rem">
+    {{ entry.start_date }} – {{ entry.end_date }}
+    {% if working_days is not none %}&nbsp;·&nbsp;<strong>{{ working_days }} working days</strong>{% endif %}
+  </p>
+
+  {% macro copy_field(label, value, field_id) %}
+  <div class="form-group">
+    <label>{{ label }}</label>
+    <div style="display:flex;gap:0.5rem;align-items:center">
+      <input type="text" id="{{ field_id }}" class="form-control" value="{{ value }}" readonly
+             style="background:var(--bg-sidebar);cursor:text">
+      <button type="button" class="btn btn-secondary btn-sm"
+              onclick="copyField('{{ field_id }}')" title="Copy">📋</button>
+    </div>
+  </div>
+  {% endmacro %}
+
+  {{ copy_field("To", mail_to, "mail-to") }}
+  {% if mail_cc %}
+  {{ copy_field("CC", mail_cc, "mail-cc") }}
+  {% endif %}
+  {{ copy_field("Subject", mail_subject, "mail-subject") }}
+
+  <div class="form-group">
+    <label>{{ t("field.body") }}</label>
+    <div style="display:flex;gap:0.5rem;align-items:flex-start">
+      <div id="mail-body-preview" class="form-control mail-body-preview">{{ mail_body_html | safe }}</div>
+      <button type="button" class="btn btn-secondary btn-sm"
+              onclick="copyMailBody()" title="Copy plain text">📋</button>
+    </div>
+    <textarea id="mail-body-plain" style="display:none">{{ mail_body_plain }}</textarea>
+  </div>
+
+  <div class="form-actions" style="margin-top:1.5rem">
+    <a href="#" id="mailto-link" class="btn btn-primary">{{ t("action.open_mail") }}</a>
+    <a href="/vacations/{{ entry.id }}/mail.eml" class="btn btn-secondary" download>⬇ Download .eml</a>
+    <a href="/vacations" class="btn btn-secondary">{{ t("action.cancel") }}</a>
+  </div>
+</div>
+
+<div id="copy-toast" style="
+  display:none;position:fixed;bottom:1.5rem;right:1.5rem;
+  background:var(--accent);color:#fff;padding:0.5rem 1rem;
+  border-radius:6px;font-size:0.9rem;z-index:9999">
+  Copied!
+</div>
+
+<script>
+function copyField(id) {
+  var el = document.getElementById(id);
+  copyText(el.value).then(function() {
+    var toast = document.getElementById('copy-toast');
+    toast.style.display = 'block';
+    setTimeout(function() { toast.style.display = 'none'; }, 1500);
+  });
+}
+
+function copyMailBody() {
+  var text = document.getElementById('mail-body-plain').value;
+  copyText(text).then(function() {
+    var toast = document.getElementById('copy-toast');
+    toast.style.display = 'block';
+    setTimeout(function() { toast.style.display = 'none'; }, 1500);
+  });
+}
+
+// Build mailto link in JS to avoid Jinja URL-encoding issues
+(function() {
+  var to = {{ mail_to | tojson }};
+  var cc = {{ mail_cc | tojson }};
+  var subject = {{ mail_subject | tojson }};
+  var body = {{ mail_body_plain | tojson }};
+  var href = 'mailto:' + encodeURIComponent(to);
+  var params = [];
+  if (cc) params.push('cc=' + encodeURIComponent(cc));
+  params.push('subject=' + encodeURIComponent(subject));
+  params.push('body=' + encodeURIComponent(body));
+  href += '?' + params.join('&');
+  document.getElementById('mailto-link').href = href;
+})();
+</script>
+{% endblock %}

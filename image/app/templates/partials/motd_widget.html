@@ -1,0 +1,12 @@
+{% if motd %}
+<div id="motd-widget" style="background:var(--bg-secondary);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:6px;padding:0.85rem 1.1rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:0.75rem">
+  <i data-lucide="message-square" class="icon-sm" style="color:var(--accent);flex-shrink:0"></i>
+  <span style="flex:1;font-size:0.95rem;line-height:1.4">{{ motd.text }}</span>
+  <button type="button" class="btn btn-sm" title="Next message"
+          hx-post="/motd/next"
+          hx-target="#motd-widget"
+          hx-swap="outerHTML">
+    <i data-lucide="chevron-right" class="icon-xs"></i>
+  </button>
+</div>
+{% endif %}

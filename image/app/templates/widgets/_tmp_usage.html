@@ -1,0 +1,29 @@
+{% if tmp_usage %}
+{% set used = tmp_usage.used %}
+{% set total = tmp_usage.total %}
+{% set pct = ((used / total) * 100) | round | int if total else 0 %}
+{% if total >= 1073741824 %}{% set tlabel = "%.1f GB" | format(total / 1073741824) %}
+{% elif total >= 1048576 %}{% set tlabel = "%.0f MB" | format(total / 1048576) %}
+{% else %}{% set tlabel = "%.0f KB" | format(total / 1024) %}{% endif %}
+{% if used >= 1073741824 %}{% set ulabel = "%.1f GB" | format(used / 1073741824) %}
+{% elif used >= 1048576 %}{% set ulabel = "%.0f MB" | format(used / 1048576) %}
+{% else %}{% set ulabel = "%.0f KB" | format(used / 1024) %}{% endif %}
+<div style="margin-bottom:0.6rem">
+  <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:0.25rem">
+    <span>{{ ulabel }} / {{ tlabel }}</span>
+    <span class="hint">{{ pct }}%</span>
+  </div>
+  <div style="height:6px;background:var(--border);border-radius:3px;overflow:hidden">
+    <div style="height:100%;width:{{ [pct,100]|min }}%;background:{% if pct > 85 %}var(--danger,#e53){% elif pct > 65 %}#f80{% else %}var(--accent){% endif %};border-radius:3px;transition:width .3s"></div>
+  </div>
+</div>
+{% if tmp_usage.repos_bytes is defined %}
+{% set rb = tmp_usage.repos_bytes %}
+{% if rb >= 1073741824 %}{% set rblabel = "%.1f GB" | format(rb / 1073741824) %}
+{% elif rb >= 1048576 %}{% set rblabel = "%.0f MB" | format(rb / 1048576) %}
+{% else %}{% set rblabel = "%.0f KB" | format(rb / 1024) %}{% endif %}
+<div class="hint" style="font-size:0.78rem">Repos: {{ rblabel }}</div>
+{% endif %}
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.unavailable") }}</p>
+{% endif %}

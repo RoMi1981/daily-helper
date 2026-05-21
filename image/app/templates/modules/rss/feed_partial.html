@@ -1,0 +1,32 @@
+{% if error %}
+<div style="color:var(--danger,#e53e3e);font-size:0.85rem;padding:0.25rem 0">
+  <i data-lucide="alert-circle" class="icon-xs"></i> {{ error }}
+</div>
+{% elif not items %}
+<p style="color:var(--text-muted);font-size:0.85rem;margin:0">{{ t("empty.rss_items") }}</p>
+{% else %}
+<div style="display:flex;flex-direction:column;gap:0">
+  {% for item in items %}
+  <div style="padding:0.6rem 0;border-bottom:1px solid var(--border){% if loop.last %};border-bottom:none{% endif %}">
+    <div style="display:flex;align-items:baseline;gap:0.75rem;flex-wrap:wrap">
+      <a href="{{ item.link }}" target="_blank" rel="noopener"
+         style="font-size:0.9rem;font-weight:500;color:var(--text);text-decoration:none;flex:1;min-width:0">
+        {{ item.title }}
+      </a>
+      {% if item.published %}
+      <span style="font-size:0.72rem;color:var(--text-dim);white-space:nowrap;flex-shrink:0">{{ item.published }}</span>
+      {% endif %}
+    </div>
+    {% if item.summary %}
+    <p style="font-size:0.8rem;color:var(--text-muted);margin:0.2rem 0 0;
+              display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">
+      {{ item.summary }}
+    </p>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+<p style="font-size:0.7rem;color:var(--text-dim);margin:0.5rem 0 0;text-align:right">
+  {{ items|length }} items · cached 15 min
+</p>
+{% endif %}

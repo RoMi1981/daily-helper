@@ -1,0 +1,20 @@
+{% if query or category %}
+  {% if results %}
+  <div class="search-results">
+    <p class="result-count">{{ results|length }} result{% if results|length != 1 %}s{% endif %}{% if query %} for "{{ query }}"{% endif %}{% if category %} in {{ category }}{% endif %}</p>
+    {% for r in results %}
+    <a href="/knowledge/entries/{{ r.repo_id }}/{{ r.category }}/{{ r.slug }}" class="result-item">
+      <div class="result-header">
+        <span class="result-title">{{ r.title }}</span>
+        <span class="result-category">📁 {{ r.category }}</span>
+      </div>
+      {% if r.snippet %}
+      <div class="result-snippet">...{{ r.snippet }}...</div>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="no-results">No results{% if query %} for "{{ query }}"{% endif %}{% if category %} in {{ category }}{% endif %}</p>
+  {% endif %}
+{% endif %}

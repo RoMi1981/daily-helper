@@ -1,0 +1,17 @@
+{% if appointments_upcoming %}
+<ul class="widget-calendar-list">
+  {% for a in appointments_upcoming %}
+  <li class="widget-calendar-item">
+    <span class="widget-cal-date">{{ a.start_date[5:] }}</span>
+    <span class="widget-cal-dot widget-cal-dot-appointment"></span>
+    <span class="widget-cal-title">{{ a.title }}</span>
+    {% if a.type %}
+    <span class="hint" style="font-size:0.7rem;white-space:nowrap">{{ a.type }}</span>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.no_appointments") }}</p>
+{% endif %}
+<a href="/appointments" class="widget-footer-link">{{ t("widget.footer.all_appointments") }}</a>

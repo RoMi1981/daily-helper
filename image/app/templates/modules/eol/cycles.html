@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+  <h1><i data-lucide="package" class="icon-sm"></i> {{ product }}</h1>
+  <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+    <a href="/eol/timeline/{{ product }}" class="btn btn-secondary btn-sm">
+      <i data-lucide="bar-chart-horizontal" class="icon-xs"></i> Timeline
+    </a>
+    <a href="/eol/add" class="btn btn-secondary btn-sm">← Search</a>
+  </div>
+</div>
+
+<div style="overflow-x:auto">
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>Cycle</th>
+      <th>Latest</th>
+      <th>Released</th>
+      <th>EOL</th>
+      <th>Extended Support</th>
+      <th>Status</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in cycles %}
+    <tr class="{% if c.status == 'eol' %}row-muted{% endif %}">
+      <td>
+        <strong>{{ c.cycle }}</strong>
+        {% if c.lts %}<span class="badge badge-accent">LTS</span>{% endif %}
+      </td>
+      <td>{{ c.latest or '—' }}</td>
+      <td class="hint">{{ c.releaseDate or '—' }}</td>
+      <td class="hint">{{ c.eol_str }}</td>
+      <td class="hint">{{ c.ext_str or '—' }}</td>
+      <td>
+        <span class="eol-status-badge eol-badge-{{ c.status }}">
+          {% if c.status == 'active' %}Active
+          {% elif c.status == 'soon' %}EOL Soon
+          {% elif c.status == 'eol' %}EOL
+          {% else %}Unknown{% endif %}
+        </span>
+      </td>
+      <td>
+        {% if c.already_tracked %}
+        <span class="hint">Tracked</span>
+        {% else %}
+        <form method="post" action="/eol/add" style="display:inline">
+          <input type="hidden" name="product" value="{{ product }}">
+          <input type="hidden" name="cycle" value="{{ c.cycle }}">
+          <input type="hidden" name="label" value="{{ product }} {{ c.cycle }}">
+          <button type="submit" class="btn btn-primary btn-xs">
+            <i data-lucide="plus" class="icon-xs"></i> Track
+          </button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% endblock %}

@@ -1,0 +1,6 @@
+<button class="btn btn-secondary btn-sm {% if pinned %}pin-active{% endif %}"
+        hx-post="/knowledge/entries/{{ repo_id }}/{{ category }}/{{ slug }}/pin"
+        hx-swap="outerHTML"
+        title="{{ t('label.unpin') if pinned else t('label.pin_to_home') }}">
+  {{ t('label.pinned_btn') if pinned else t('label.pin') }}
+</button>

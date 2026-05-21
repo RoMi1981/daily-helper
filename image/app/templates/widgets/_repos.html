@@ -1,0 +1,34 @@
+{% if repos_widget %}
+<ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0.5rem">
+  {% for repo in repos_widget %}
+  <li style="{% if not repo.enabled %}opacity:0.5{% endif %}">
+    <div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap">
+      <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:0.88rem;font-weight:500">{{ repo.name }}</span>
+      {% if not repo.enabled %}
+      <span class="repo-feature-badge">Off</span>
+      {% elif repo.write %}
+      <span class="repo-feature-badge" style="color:var(--accent)">RW</span>
+      {% else %}
+      <span class="repo-feature-badge">RO</span>
+      {% endif %}
+      {% if repo.ca_cert %}<span class="repo-feature-badge" title="Custom CA certificate"><i data-lucide="shield" class="icon-xs"></i> CA</span>{% endif %}
+      {% if repo.gpg_key %}<span class="repo-feature-badge" title="GPG commit signing">✍️ GPG</span>{% endif %}
+      {% if repo.git_user_name or repo.git_user_email %}
+      <span class="repo-feature-badge" title="{{ repo.git_user_name }} &lt;{{ repo.git_user_email }}&gt;">👤 ID</span>
+      {% endif %}
+      {% if repo.size_bytes %}
+      {% set sb = repo.size_bytes %}
+      {% if sb >= 1073741824 %}{% set slabel = "%.1f GB" | format(sb / 1073741824) %}
+      {% elif sb >= 1048576 %}{% set slabel = "%.1f MB" | format(sb / 1048576) %}
+      {% elif sb >= 1024 %}{% set slabel = "%.0f KB" | format(sb / 1024) %}
+      {% else %}{% set slabel = sb ~ " B" %}{% endif %}
+      <span class="repo-feature-badge hint"><i data-lucide="hard-drive" class="icon-xs"></i> {{ slabel }}</span>
+      {% endif %}
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.no_repos") }}</p>
+{% endif %}
+<a href="/settings" class="widget-footer-link">{{ t("widget.footer.settings") }}</a>

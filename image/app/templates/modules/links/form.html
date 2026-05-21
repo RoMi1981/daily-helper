@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ t("label.edit_link") if link else t("label.new_link") }} – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="link-2" class="icon-sm"></i> {{ t("label.edit_link") if link else t("label.new_link") }}</h1>
+</div>
+
+<form method="post" action="/links/{{ link.id + '/edit' if link else 'new' }}?section={{ active_section.id }}" class="entry-form">
+  <input type="hidden" name="section" value="{{ active_section.id }}">
+  <div class="form-group">
+    <label>{{ t("field.title_required") }}</label>
+    <input type="text" name="title" class="form-control" required autofocus autocomplete="off"
+           value="{{ link.title if link else '' }}" placeholder="Grafana Dashboard…">
+  </div>
+  <div class="form-group">
+    <label>{{ t("field.url") }} *</label>
+    <input type="url" name="url" class="form-control" required autocomplete="off"
+           value="{{ link.url if link else '' }}" placeholder="https://…">
+    <p class="field-hint">{{ t("field.hint.link_url") }}</p>
+  </div>
+  <div class="form-group">
+    <label>{{ t("field.category") }}</label>
+    <input type="text" name="category" class="form-control" autocomplete="off"
+           list="category-list"
+           value="{{ link.category if link else prefill_category }}"
+           placeholder="Monitoring, CI/CD, Docs…">
+    <datalist id="category-list">
+      {% for cat in categories %}
+      <option value="{{ cat }}">
+      {% endfor %}
+    </datalist>
+    <p class="field-hint">{{ t("field.hint.link_category") }}</p>
+  </div>
+  <div class="form-group">
+    <label>{{ t("field.description") }}</label>
+    <input type="text" name="description" class="form-control" autocomplete="off"
+           value="{{ link.description if link else '' }}"
+           placeholder="Short description…">
+    <p class="field-hint">{{ t("field.hint.link_description") }}</p>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">{{ t("action.save") if link else t("action.add") }}</button>
+    <a href="/links?section={{ active_section.id }}" class="btn">{{ t("action.cancel") }}</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+  <h1><i data-lucide="shield-check" class="icon-sm"></i> EOL Tracker</h1>
+  <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+    <a href="/help/eol" class="btn btn-sm" title="Help"><i data-lucide="help-circle" class="icon-xs"></i></a>
+    <a href="/eol/add" class="btn btn-primary btn-sm">
+      <i data-lucide="plus" class="icon-xs"></i> Track Software
+    </a>
+  </div>
+</div>
+
+{% if entries %}
+<div class="eol-list">
+  {% set current_product = namespace(val="") %}
+  {% for e in entries %}
+    {% if e.product != current_product.val %}
+      {% if not loop.first %}</div>{% endif %}
+      {% set current_product.val = e.product %}
+      <div class="eol-product-group">
+        <div class="eol-product-header">
+          <h3 class="eol-product-name">{{ e.product }}</h3>
+          <a href="/eol/timeline/{{ e.product }}" class="btn btn-secondary btn-sm">
+            <i data-lucide="bar-chart-horizontal" class="icon-xs"></i> Timeline
+          </a>
+        </div>
+    {% endif %}
+
+    <div class="eol-entry eol-entry-{{ e.status }}">
+      <div class="eol-entry-main">
+        <span class="eol-cycle">{{ e.cycle }}</span>
+        {% if e.latest %}
+        <span class="eol-latest">{{ e.latest }}</span>
+        {% endif %}
+        <span class="eol-status-badge eol-badge-{{ e.status }}">
+          {% if e.status == 'active' %}Active
+          {% elif e.status == 'soon' %}EOL Soon
+          {% elif e.status == 'eol' %}EOL
+          {% else %}Unknown{% endif %}
+        </span>
+      </div>
+      <div class="eol-entry-meta">
+        {% if e.eol_date %}
+        <span class="hint">EOL: {{ e.eol_date }}</span>
+        {% endif %}
+        {% if e.ext_date %}
+        <span class="hint">Extended: {{ e.ext_date }}</span>
+        {% endif %}
+      </div>
+      {% if e.notes %}
+      <div class="eol-notes-display">{{ e.notes }}</div>
+      {% endif %}
+      <div class="eol-entry-actions">
+        <button class="btn btn-secondary btn-xs" onclick="toggleNotes('{{ e.id }}')">
+          <i data-lucide="pencil" class="icon-xs"></i> Notes
+        </button>
+        <form method="post" action="/eol/{{ e.id }}/delete" onsubmit="return confirm('Remove {{ e.label }}?')">
+          <button class="btn btn-danger btn-xs"><i data-lucide="trash-2" class="icon-xs"></i></button>
+        </form>
+      </div>
+      <div id="notes-form-{{ e.id }}" class="eol-notes-form" style="display:none">
+        <form method="post" action="/eol/{{ e.id }}/notes">
+          <textarea name="notes" rows="2" placeholder="Notes…">{{ e.notes or '' }}</textarea>
+          <div class="eol-notes-actions">
+            <button type="button" class="btn btn-secondary btn-xs" onclick="toggleNotes('{{ e.id }}')">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-xs">Save</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% if loop.last %}</div>{% endif %}
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <i data-lucide="shield-check" class="icon empty-state-icon"></i>
+  <p>No software tracked yet.</p>
+  <a href="/eol/add" class="btn btn-primary">Track your first software</a>
+</div>
+{% endif %}
+
+<script>
+function toggleNotes(id) {
+  var f = document.getElementById('notes-form-' + id);
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+}
+</script>
+{% endblock %}

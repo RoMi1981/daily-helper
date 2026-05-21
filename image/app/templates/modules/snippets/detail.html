@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}{{ snippet.title }} – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1 style="font-size:1.3rem;margin:0"><i data-lucide="code-2" class="icon-sm"></i> {{ snippet.title }}</h1>
+  <div style="display:flex;gap:0.5rem;align-items:center">
+    <a href="/snippets/{{ snippet.id }}/edit" class="btn btn-sm">{{ t("action.edit") }}</a>
+    <a href="/snippets/{{ snippet.id }}/history" class="btn btn-sm"><i data-lucide="history" class="icon-xs"></i> History</a>
+    <form method="post" action="/snippets/{{ snippet.id }}/delete" style="margin:0"
+          onsubmit="return confirm('{{ t('confirm.delete_snippet') }}')">
+      <button type="submit" class="btn btn-danger btn-sm">{{ t("action.delete") }}</button>
+    </form>
+    <a href="/snippets" class="btn btn-sm">← Back</a>
+  </div>
+</div>
+
+{% if snippet.description %}
+<p style="color:var(--text-muted);margin:0.5rem 0 1rem">{{ snippet.description }}</p>
+{% endif %}
+
+<div style="font-size:0.8rem;color:var(--text-muted);margin-bottom:1.25rem">
+  Created {{ snippet.created }}{% if snippet.updated and snippet.updated != snippet.created %} · Updated {{ snippet.updated }}{% endif %}
+</div>
+
+{% if snippet.steps %}
+<div style="display:flex;flex-direction:column;gap:0.75rem">
+{% for step in snippet.steps %}
+<div class="card" style="padding:0.9rem 1.1rem">
+  {% if step.description %}
+  <div style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.5rem">{{ step.description }}</div>
+  {% endif %}
+  <div style="display:flex;align-items:center;gap:0.5rem">
+    <code style="flex:1;font-size:0.9rem;background:var(--bg-secondary);border:1px solid var(--border);border-radius:5px;padding:0.45rem 0.7rem;word-break:break-all;white-space:pre-wrap;font-family:monospace;min-width:0">{{ step.command }}</code>
+    <button type="button" class="btn btn-sm" style="flex-shrink:0"
+            onclick='copyCmd(this, {{ step.command | tojson }})' title="Copy command"><i data-lucide="clipboard" class="icon-xs"></i></button>
+  </div>
+</div>
+{% endfor %}
+</div>
+
+{% else %}
+<div class="alert alert-info">This snippet has no steps yet. <a href="/snippets/{{ snippet.id }}/edit">Add some.</a></div>
+{% endif %}
+
+<script>
+function copyCmd(btn, text) {
+  var orig = btn.innerHTML;
+  copyText(text).then(function() { btn.textContent = '✓'; setTimeout(function() { btn.innerHTML = orig; if (window.lucide) lucide.createIcons({el: btn}); }, 1500); });
+}
+</script>
+{% endblock %}

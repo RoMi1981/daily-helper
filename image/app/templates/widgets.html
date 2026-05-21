@@ -1,0 +1,439 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="widgets-page-header">
+  <h1 class="page-title"><i data-lucide="layout-dashboard" class="icon"></i> Dashboard</h1>
+  <div class="widgets-header-actions">
+    <a href="/help/widgets" class="btn btn-sm" title="Help"><i data-lucide="help-circle" class="icon-xs"></i></a>
+    <button id="edit-toggle-btn" class="btn btn-secondary btn-sm" onclick="toggleEditMode()">
+      <i data-lucide="pencil" class="icon-xs"></i> {{ t("action.edit") }}
+    </button>
+    <div id="edit-actions" style="display:none" class="widget-mass-actions">
+      <button class="btn btn-secondary btn-sm" onclick="removeSelected()">Remove Selected</button>
+      <button class="btn btn-secondary btn-sm" onclick="removeAll()">Remove All</button>
+      <button id="save-layout-btn" class="btn btn-primary btn-sm" onclick="saveLayout()">
+        <i data-lucide="check" class="icon-xs"></i> Done
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Active widget grid -->
+<div id="widget-grid" class="widget-grid">
+  {% for w in active_widgets %}
+  <div class="widget widget-{{ w.size }}" data-id="{{ w.id }}">
+    <div class="widget-chrome">
+      <input type="checkbox" class="widget-select-cb edit-only" data-id="{{ w.id }}" style="display:none" title="Select">
+      <span class="widget-drag-handle edit-only" title="Drag to reorder">⠿</span>
+      <span class="widget-title-bar">{{ t("widget.label." ~ w.id) }}</span>
+      <div class="widget-actions">
+        {% set has_settings = w.id in ["tasks_due","tasks_overdue","calendar_mini","appointments_upcoming","rss_feed","runbook_overview","favorites","recent_activity","bookmarks","notes_recent","countdown"] %}
+        {% if has_settings %}
+        <button class="widget-settings-btn edit-only" title="Widget settings"
+                onclick="openWidgetSettings('{{ w.id }}')">
+          <i data-lucide="settings-2" class="icon-xs"></i>
+        </button>
+        {% endif %}
+        <button class="widget-remove-btn edit-only" title="Remove widget"
+                onclick="removeWidget('{{ w.id }}')">
+          <i data-lucide="x" class="icon-xs"></i>
+        </button>
+      </div>
+    </div>
+    <div class="widget-body">
+      {% if w.id.startswith("stats_") %}
+        {% set mod = w.module %}
+        {% set count = counts.get(mod, 0) %}
+        {% include "widgets/_stats.html" %}
+      {% elif w.id == "tasks_due" %}
+        {% include "widgets/_tasks_due.html" %}
+      {% elif w.id == "tasks_overdue" %}
+        {% include "widgets/_tasks_overdue.html" %}
+      {% elif w.id == "motd" %}
+        {% include "widgets/_motd.html" %}
+      {% elif w.id == "calendar_mini" %}
+        {% include "widgets/_calendar_mini.html" %}
+      {% elif w.id == "sprint" %}
+        {% include "widgets/_sprint.html" %}
+      {% elif w.id == "vacation_balance" %}
+        {% include "widgets/_vacation_balance.html" %}
+      {% elif w.id == "next_vacation" %}
+        {% include "widgets/_next_vacation.html" %}
+      {% elif w.id == "appointments_upcoming" %}
+        {% include "widgets/_appointments_upcoming.html" %}
+      {% elif w.id == "favorites" %}
+        {% include "widgets/_favorites.html" %}
+      {% elif w.id == "recent_activity" %}
+        {% include "widgets/_recent_activity.html" %}
+      {% elif w.id == "rss_feed" %}
+        {% include "widgets/_rss_feed.html" %}
+      {% elif w.id == "runbook_overview" %}
+        {% include "widgets/_runbook_overview.html" %}
+      {% elif w.id == "quick_capture" %}
+        {% include "widgets/_quick_capture.html" %}
+      {% elif w.id == "bookmarks" %}
+        {% include "widgets/_bookmarks.html" %}
+      {% elif w.id == "potd" %}
+        {% include "widgets/_potd.html" %}
+      {% elif w.id == "meme" %}
+        {% include "widgets/_meme.html" %}
+      {% elif w.id == "redis_status" %}
+        {% include "widgets/_redis_status.html" %}
+      {% elif w.id == "tmp_usage" %}
+        {% include "widgets/_tmp_usage.html" %}
+      {% elif w.id == "calendar_widget" %}
+        {% include "widgets/_calendar_widget.html" %}
+      {% elif w.id == "countdown" %}
+        {% include "widgets/_countdown.html" %}
+      {% elif w.id == "app_version" %}
+        {% include "widgets/_app_version.html" %}
+      {% elif w.id == "repos" %}
+        {% include "widgets/_repos.html" %}
+      {% elif w.id == "notes_recent" %}
+        {% include "widgets/_notes_recent.html" %}
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Add widget panel (edit mode only) -->
+{% if available_widgets %}
+<div id="add-widget-panel" class="edit-only" style="display:none">
+  <div class="add-widget-header">
+    <h3 class="add-widget-title"><i data-lucide="plus-circle" class="icon-xs"></i> Add Widget</h3>
+    <div class="widget-mass-actions">
+      <button class="btn btn-secondary btn-sm" onclick="addSelected()">Add Selected</button>
+      <button class="btn btn-secondary btn-sm" onclick="addAll()">Add All</button>
+    </div>
+  </div>
+  <div class="add-widget-grid">
+    {% for w in available_widgets %}
+    <label class="add-widget-btn add-widget-label">
+      <input type="checkbox" class="avail-widget-cb" data-id="{{ w.id }}">
+      <i data-lucide="{{ w.icon }}" class="icon-xs"></i>
+      {{ w.label }}
+    </label>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- Settings overlay -->
+<div id="widget-settings-overlay" style="display:none" onclick="closeWidgetSettings()"></div>
+
+<!-- Settings popovers -->
+<div id="settings-tasks_due" class="widget-settings-popover" style="display:none">
+  <h4>{{ t("widget.settings.title.tasks_due") }}</h4>
+  <label>{{ t("widget.settings.max_items") }}
+    <input type="number" id="tasks_due-max_items" min="1" max="20"
+           value="{{ (active_widgets | selectattr('id','eq','tasks_due') | list | first).settings.get('max_items', 5) if (active_widgets | selectattr('id','eq','tasks_due') | list) else 5 }}">
+  </label>
+  <div class="popover-actions">
+    <button class="btn btn-secondary btn-sm" onclick="closeWidgetSettings()">{{ t("action.cancel") }}</button>
+    <button class="btn btn-primary btn-sm" onclick="saveWidgetSettings('tasks_due',{max_items:+document.getElementById('tasks_due-max_items').value})">{{ t("action.save") }}</button>
+  </div>
+</div>
+
+<div id="settings-tasks_overdue" class="widget-settings-popover" style="display:none">
+  <h4>{{ t("widget.settings.title.tasks_overdue") }}</h4>
+  <label>{{ t("widget.settings.max_items") }}
+    <input type="number" id="tasks_overdue-max_items" min="1" max="20"
+           value="{{ (active_widgets | selectattr('id','eq','tasks_overdue') | list | first).settings.get('max_items', 5) if (active_widgets | selectattr('id','eq','tasks_overdue') | list) else 5 }}">
+  </label>
+  <div class="popover-actions">
+    <button class="btn btn-secondary btn-sm" onclick="closeWidgetSettings()">{{ t("action.cancel") }}</button>
+    <button class="btn btn-primary btn-sm" onclick="saveWidgetSettings('tasks_overdue',{max_items:+document.getElementById('tasks_overdue-max_items').value})">{{ t("action.save") }}</button>
+  </div>
+</div>
+
+<div id="settings-calendar_mini" class="widget-settings-popover" style="display:none">
+  <h4>{{ t("widget.settings.title.calendar_mini") }}</h4>
+  <label>{{ t("widget.settings.days_ahead") }}
+    <input type="number" id="calendar_mini-days_ahead" min="1" max="90"
+           value="{{ (active_widgets | selectattr('id','eq','calendar_mini') | list | first).settings.get('days_ahead', 14) if (active_widgets | selectattr('id','eq','calendar_mini') | list) else 14 }}">
+  </label>
+  <div class="popover-actions">
+    <button class="btn btn-secondary btn-sm" onclick="closeWidgetSettings()">{{ t("action.cancel") }}</button>
+    <button class="btn btn-primary btn-sm" onclick="saveWidgetSettings('calendar_mini',{days_ahead:+document.getElementById('calendar_mini-days_ahead').value})">{{ t("action.save") }}</button>
+  </div>
+</div>
+
+<div id="settings-appointments_upcoming" class="widget-settings-popover" style="display:none">
+  <h4>{{ t("widget.settings.title.appointments_upcoming") }}</h4>
+  <label>{{ t("widget.settings.days_ahead") }}
+    <input type="number" id="appt-days_ahead" min="1" max="90"
+           value="{{ (active_widgets | selectattr('id','eq','appointments_upcoming') | list | first).settings.get('days_ahead', 14) if (active_widgets | selectattr('id','eq','appointments_upcoming') | list) else 14 }}">
+  </label>
+  <label>{{ t("widget.settings.max_items") }}
+    <input type="number" id="appt-max_items" min="1" max="20"
+           value="{{ (active_widgets | selectattr('id','eq','appointments_upcoming') | list | first).settings.get('max_items', 5) if (active_widgets | selectattr('id','eq','appointments_upcoming') | list) else 5 }}">
+  </label>
+  <div class="popover-actions">
+    <button class="btn btn-secondary btn-sm" onclick="closeWidgetSettings()">{{ t("action.cancel") }}</button>
+    <button class="btn btn-primary btn-sm" onclick="saveWidgetSettings('appointments_upcoming',{days_ahead:+document.getElementById('appt-days_ahead').value,max_items:+document.getElementById('appt-max_items').value})">{{ t("action.save") }}</button>
+  </div>
+</div>
+
+<div id="settings-favorites" class="widget-settings-popover" style="display:none">
+  <h4>{{ t("widget.settings.title.favorites") }}</h4>
+  <label>{{ t("widget.settings.max_items") }}
+    <input type="number" id="fav-max_items" min="1" max="20"
+           value="{{ (active_widgets | selectattr('id','eq','favorites') | list | first).settings.get('max_items', 8) if (active_widgets | selectattr('id','eq','favorites') | list) else 8 }}">
+  </label>
+  <div class="popover-actions">
+    <button class="btn btn-secondary btn-sm" onclick="closeWidgetSettings()">{{ t("action.cancel") }}</button>
+    <button class="btn btn-primary btn-sm" onclick="saveWidgetSettings('favorites',{max_items:+document.getElementById('fav-max_items').value})">{{ t("action.save") }}</button>
+  </div>
+</div>
+
+<div id="settings-recent_activity" class="widget-settings-popover" style="display:none">
+  <h4>{{ t("widget.settings.title.recent_activity") }}</h4>
+  <label>{{ t("widget.settings.max_items") }}
+    <input type="number" id="activity-max_items" min="1" max="20"
+           value="{{ (active_widgets | selectattr('id','eq','recent_activity') | list | first).settings.get('max_items', 8) if (active_widgets | selectattr('id','eq','recent_activity') | list) else 8 }}">
+  </label>
+  <div class="popover-actions">
+    <button class="btn btn-secondary btn-sm" onclick="closeWidgetSettings()">{{ t("action.cancel") }}</button>
+    <button class="btn btn-primary btn-sm" onclick="saveWidgetSettings('recent_activity',{max_items:+document.getElementById('activity-max_items').value})">{{ t("action.save") }}</button>
+  </div>
+</div>
+
+<div id="settings-rss_feed" class="widget-settings-popover" style="display:none">
+  <h4>{{ t("widget.settings.title.rss_feed") }}</h4>
+  <label>{{ t("widget.settings.feed") }}
+    <select id="rss-feed_id">
+      <option value="">{{ t("widget.settings.all_feeds") }}</option>
+      {% for f in rss_feeds_for_settings %}
+      <option value="{{ f.id }}"
+        {% if (active_widgets | selectattr('id','eq','rss_feed') | list | first) and (active_widgets | selectattr('id','eq','rss_feed') | list | first).settings.get('feed_id') == f.id %}selected{% endif %}>
+        {{ f.name }}
+      </option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>{{ t("widget.settings.max_items") }}
+    <input type="number" id="rss-max_items" min="1" max="20"
+           value="{{ (active_widgets | selectattr('id','eq','rss_feed') | list | first).settings.get('max_items', 5) if (active_widgets | selectattr('id','eq','rss_feed') | list) else 5 }}">
+  </label>
+  <div class="popover-actions">
+    <button class="btn btn-secondary btn-sm" onclick="closeWidgetSettings()">{{ t("action.cancel") }}</button>
+    <button class="btn btn-primary btn-sm" onclick="saveWidgetSettings('rss_feed',{feed_id:document.getElementById('rss-feed_id').value,max_items:+document.getElementById('rss-max_items').value})">{{ t("action.save") }}</button>
+  </div>
+</div>
+
+<div id="settings-runbook_overview" class="widget-settings-popover" style="display:none">
+  <h4>{{ t("widget.settings.title.runbook_overview") }}</h4>
+  <label>{{ t("widget.settings.max_items") }}
+    <input type="number" id="rb-max_items" min="1" max="20"
+           value="{{ (active_widgets | selectattr('id','eq','runbook_overview') | list | first).settings.get('max_items', 5) if (active_widgets | selectattr('id','eq','runbook_overview') | list) else 5 }}">
+  </label>
+  <div class="popover-actions">
+    <button class="btn btn-secondary btn-sm" onclick="closeWidgetSettings()">{{ t("action.cancel") }}</button>
+    <button class="btn btn-primary btn-sm" onclick="saveWidgetSettings('runbook_overview',{max_items:+document.getElementById('rb-max_items').value})">{{ t("action.save") }}</button>
+  </div>
+</div>
+
+<div id="settings-bookmarks" class="widget-settings-popover" style="display:none">
+  <h4>{{ t("widget.settings.title.bookmarks") }}</h4>
+  <label>{{ t("widget.settings.category_filter") }}
+    <select id="bm-category">
+      <option value="">{{ t("widget.settings.all_categories") }}</option>
+      {% for cat in link_categories %}
+      <option value="{{ cat }}"
+        {% if (active_widgets | selectattr('id','eq','bookmarks') | list | first) and (active_widgets | selectattr('id','eq','bookmarks') | list | first).settings.get('category') == cat %}selected{% endif %}>
+        {{ cat }}
+      </option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>{{ t("widget.settings.max_items") }}
+    <input type="number" id="bm-max_items" min="1" max="20"
+           value="{{ (active_widgets | selectattr('id','eq','bookmarks') | list | first).settings.get('max_items', 8) if (active_widgets | selectattr('id','eq','bookmarks') | list) else 8 }}">
+  </label>
+  <div class="popover-actions">
+    <button class="btn btn-secondary btn-sm" onclick="closeWidgetSettings()">{{ t("action.cancel") }}</button>
+    <button class="btn btn-primary btn-sm" onclick="saveWidgetSettings('bookmarks',{category:document.getElementById('bm-category').value,max_items:+document.getElementById('bm-max_items').value})">{{ t("action.save") }}</button>
+  </div>
+</div>
+
+<div id="settings-notes_recent" class="widget-settings-popover" style="display:none">
+  <h4>{{ t("widget.settings.title.notes_recent") }}</h4>
+  <label>{{ t("widget.settings.max_items") }}
+    <input type="number" id="notes-max_items" min="1" max="20"
+           value="{{ (active_widgets | selectattr('id','eq','notes_recent') | list | first).settings.get('max_items', 5) if (active_widgets | selectattr('id','eq','notes_recent') | list) else 5 }}">
+  </label>
+  <div class="popover-actions">
+    <button class="btn btn-secondary btn-sm" onclick="closeWidgetSettings()">{{ t("action.cancel") }}</button>
+    <button class="btn btn-primary btn-sm" onclick="saveWidgetSettings('notes_recent',{max_items:+document.getElementById('notes-max_items').value})">{{ t("action.save") }}</button>
+  </div>
+</div>
+
+<div id="settings-countdown" class="widget-settings-popover" style="display:none">
+  <h4>{{ t("widget.settings.title.countdown") }}</h4>
+  <label>{{ t("widget.settings.label") }}
+    <input type="text" id="cd-label" placeholder="{{ t('widget.settings.label_placeholder') }}"
+           value="{{ (active_widgets | selectattr('id','eq','countdown') | list | first).settings.get('label', '') if (active_widgets | selectattr('id','eq','countdown') | list) else '' }}">
+  </label>
+  <label>{{ t("widget.settings.target_date") }}
+    <input type="date" id="cd-target_date"
+           value="{{ (active_widgets | selectattr('id','eq','countdown') | list | first).settings.get('target_date', '') if (active_widgets | selectattr('id','eq','countdown') | list) else '' }}">
+  </label>
+  <div class="popover-actions">
+    <button class="btn btn-secondary btn-sm" onclick="closeWidgetSettings()">{{ t("action.cancel") }}</button>
+    <button class="btn btn-primary btn-sm" onclick="saveWidgetSettings('countdown',{label:document.getElementById('cd-label').value,target_date:document.getElementById('cd-target_date').value})">{{ t("action.save") }}</button>
+  </div>
+</div>
+
+<script src="/static/sortable.min.js"></script>
+<script>
+var _editMode = false;
+var _sortable = null;
+
+async function copyImageToClipboard(url, btn) {
+  try {
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    const mimeType = blob.type.startsWith('image/') ? blob.type : 'image/png';
+    await navigator.clipboard.write([new ClipboardItem({[mimeType]: blob})]);
+    const icon = btn.querySelector('[data-lucide]');
+    if (icon) { icon.setAttribute('data-lucide', 'check'); lucide.createIcons({nodes: [icon]}); }
+    setTimeout(() => {
+      if (icon) { icon.setAttribute('data-lucide', 'copy'); lucide.createIcons({nodes: [icon]}); }
+    }, 1500);
+  } catch(e) {
+    btn.title = 'Copy failed: ' + e.message;
+  }
+}
+
+function masonryLayout() {
+  var grid = document.getElementById('widget-grid');
+  if (!grid || _editMode) return;
+  var rowGap = parseInt(getComputedStyle(grid).rowGap) || 16;
+  var rowH = 10;
+  // scrollHeight gives natural content height regardless of overflow:hidden
+  grid.querySelectorAll('.widget').forEach(function(item) {
+    item.style.gridRowEnd = '';
+    var h = item.scrollHeight;
+    var spans = Math.ceil((h + rowGap) / (rowH + rowGap));
+    item.style.gridRowEnd = 'span ' + spans;
+  });
+}
+
+var _masonryResizeTimer = null;
+window.addEventListener('resize', function() {
+  clearTimeout(_masonryResizeTimer);
+  _masonryResizeTimer = setTimeout(masonryLayout, 100);
+});
+window.addEventListener('load', function() {
+  requestAnimationFrame(function() { requestAnimationFrame(masonryLayout); });
+});
+
+function toggleEditMode() {
+  _editMode = !_editMode;
+  var grid = document.getElementById('widget-grid');
+  grid.classList.toggle('edit-mode', _editMode);
+  if (_editMode) {
+    grid.querySelectorAll('.widget').forEach(function(item) {
+      item.style.gridRowEnd = '';
+    });
+  } else {
+    masonryLayout();
+  }
+  document.getElementById('edit-toggle-btn').style.display = _editMode ? 'none' : '';
+  document.getElementById('edit-actions').style.display = _editMode ? '' : 'none';
+  var panel = document.getElementById('add-widget-panel');
+  if (panel) panel.style.display = _editMode ? '' : 'none';
+  document.querySelectorAll('.edit-only').forEach(function(el) {
+    el.style.display = _editMode ? '' : 'none';
+  });
+  if (_editMode && !_sortable) {
+    _sortable = Sortable.create(grid, {
+      handle: '.widget-drag-handle',
+      animation: 150,
+      ghostClass: 'widget-ghost',
+    });
+  }
+}
+
+function saveLayout() {
+  var grid = document.getElementById('widget-grid');
+  var order = Array.from(grid.querySelectorAll('.widget')).map(function(el) {
+    return { id: el.dataset.id, enabled: true };
+  });
+  fetch('/widgets/layout', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(order),
+  }).then(function() { window.location.reload(); });
+}
+
+function removeWidget(id) {
+  var el = document.querySelector('.widget[data-id="' + id + '"]');
+  if (el) el.remove();
+}
+
+function removeSelected() {
+  document.querySelectorAll('.widget-select-cb:checked').forEach(function(cb) {
+    removeWidget(cb.dataset.id);
+    cb.checked = false;
+  });
+}
+
+function removeAll() {
+  document.querySelectorAll('#widget-grid .widget').forEach(function(el) { el.remove(); });
+}
+
+function addWidget(id) {
+  _addWidgetsToGrid([id]);
+}
+
+function addSelected() {
+  var ids = Array.from(document.querySelectorAll('.avail-widget-cb:checked')).map(function(cb) { return cb.dataset.id; });
+  if (ids.length) _addWidgetsToGrid(ids);
+}
+
+function addAll() {
+  var ids = Array.from(document.querySelectorAll('.avail-widget-cb')).map(function(cb) { return cb.dataset.id; });
+  if (ids.length) _addWidgetsToGrid(ids);
+}
+
+function _addWidgetsToGrid(newIds) {
+  var grid = document.getElementById('widget-grid');
+  var order = Array.from(grid.querySelectorAll('.widget')).map(function(el) {
+    return { id: el.dataset.id, enabled: true };
+  });
+  newIds.forEach(function(id) { order.push({ id: id, enabled: true }); });
+  fetch('/widgets/layout', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(order),
+  }).then(function() { window.location.reload(); });
+}
+
+function openWidgetSettings(id) {
+  document.querySelectorAll('.widget-settings-popover').forEach(function(p) { p.style.display = 'none'; });
+  var popover = document.getElementById('settings-' + id);
+  if (popover) {
+    popover.style.display = 'block';
+    document.getElementById('widget-settings-overlay').style.display = 'block';
+  }
+}
+
+function closeWidgetSettings() {
+  document.querySelectorAll('.widget-settings-popover').forEach(function(p) { p.style.display = 'none'; });
+  document.getElementById('widget-settings-overlay').style.display = 'none';
+}
+
+function saveWidgetSettings(id, settings) {
+  fetch('/widgets/' + id + '/settings', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(settings),
+  }).then(function() { window.location.reload(); });
+}
+
+// Hide edit-only elements on load
+document.querySelectorAll('.edit-only').forEach(function(el) { el.style.display = 'none'; });
+</script>
+{% endblock %}

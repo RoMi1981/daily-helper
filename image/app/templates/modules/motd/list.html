@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}MOTD – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="message-square" class="icon-sm"></i> {{ t("nav.motd") }}</h1>
+  <div style="display:flex;align-items:center;gap:0.5rem">
+    <a href="/help/motd" class="btn btn-sm" title="Help"><i data-lucide="help-circle" class="icon-xs"></i></a>
+    <a href="/motd/new" class="btn btn-primary">+ {{ t("action.new") }}</a>
+  </div>
+</div>
+
+{% if duplicate %}
+<div class="alert alert-warning">{{ t("msg.duplicate") }}</div>
+{% elif saved %}
+<div class="alert alert-success">
+  {% if saved == '1' %}Message saved.
+  {% else %}{{ saved }} message{% if saved != '1' %}s{% endif %} imported{% if skipped %}, {{ skipped }} duplicate{% if skipped != '1' %}s{% endif %} skipped{% endif %}.
+  {% endif %}
+</div>
+{% elif skipped %}
+<div class="alert alert-warning">{{ skipped }} duplicate{% if skipped != '1' %}s{% endif %} skipped — no new messages added.</div>
+{% endif %}
+
+{% if not configured %}
+<div class="alert alert-warning">
+  {{ t("msg.no_repo") | safe }}
+</div>
+{% else %}
+
+<div style="margin-bottom:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center">
+  <a href="/motd/import" class="btn btn-sm">{{ t("action.import_list") }}</a>
+</div>
+
+{% if not entries %}
+<div class="alert alert-info">{{ t("empty.motd") }} <a href="/motd/new">Add one.</a></div>
+{% else %}
+
+<div class="module-list">
+{% for entry in entries %}
+<div class="card mod-card">
+  <div class="mod-card-info">
+    <div class="mod-card-title {% if not entry.active %}text-muted{% endif %}" style="{% if not entry.active %}text-decoration:line-through{% endif %}">{{ entry.text }}</div>
+    <div class="mod-card-meta">
+      <span>{{ entry.created }}</span>
+      {% if not entry.active %}<span style="padding:0.1rem 0.4rem;border-radius:4px;background:var(--bg-secondary)">{{ t("label.inactive") }}</span>{% endif %}
+    </div>
+  </div>
+  <div class="mod-card-actions">
+    <a href="/motd/{{ entry.id }}/edit" class="btn btn-sm"><i data-lucide="pencil" class="icon-xs"></i></a>
+    <form method="post" action="/motd/{{ entry.id }}/delete" style="margin:0"
+          onsubmit="return confirm('{{ t('confirm.delete_message') }}')">
+      <button type="submit" class="btn btn-danger btn-sm"><i data-lucide="trash-2" class="icon-xs"></i></button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+</div>
+
+{% endif %}
+{% endif %}
+{% endblock %}

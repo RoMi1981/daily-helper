@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Ticket Templates – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="ticket" class="icon-sm"></i> {{ t("nav.ticket_templates") }}</h1>
+  <div style="display:flex;align-items:center;gap:0.5rem">
+    <a href="/help/ticket-templates" class="btn btn-sm" title="Help"><i data-lucide="help-circle" class="icon-xs"></i></a>
+    <a href="/ticket-templates/new" class="btn btn-primary">+ {{ t("action.new") }}</a>
+  </div>
+</div>
+
+{% if saved %}
+<div class="alert alert-success">{{ t("msg.saved_template") }}</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-error">{{ error }}</div>
+{% endif %}
+
+{% if not configured %}
+<div class="alert alert-warning">
+  {{ t("msg.no_repo") | safe }}
+</div>
+{% elif not templates %}
+<div class="alert alert-info">{{ t("empty.ticket_templates") }} <a href="/ticket-templates/new">Create one.</a></div>
+{% else %}
+
+<div class="module-list">
+{% for tmpl in templates %}
+<div class="card mod-card">
+  <div class="mod-card-info">
+    <div class="mod-card-title">{{ tmpl.name }}</div>
+    {% if tmpl.description %}
+    <div class="mod-card-meta">{{ tmpl.description }}</div>
+    {% endif %}
+    {% if tmpl.body %}
+    <details style="margin-top:0.35rem">
+      <summary style="font-size:0.8rem;color:var(--text-muted);cursor:pointer">{{ t("action.show_body") }}</summary>
+      <pre style="margin-top:0.4rem;font-size:0.8rem;white-space:pre-wrap;word-break:break-word;background:var(--bg-secondary);padding:0.75rem;border-radius:4px;max-height:200px;overflow-y:auto">{{ tmpl.body }}</pre>
+    </details>
+    {% endif %}
+  </div>
+  <div class="mod-card-actions">
+    {% if tmpl.description %}
+    <button class="btn btn-sm" onclick="copyTicketField(this, {{ loop.index0 }}, 'description')" title="Copy description"><i data-lucide="clipboard" class="icon-xs"></i></button>
+    {% endif %}
+    {% if tmpl.body %}
+    <button class="btn btn-sm" onclick="copyTicketField(this, {{ loop.index0 }}, 'body')" title="Copy body"><i data-lucide="clipboard" class="icon-xs"></i></button>
+    {% endif %}
+    <a href="/ticket-templates/{{ tmpl.id }}/edit" class="btn btn-sm"><i data-lucide="pencil" class="icon-xs"></i></a>
+    <a href="/ticket-templates/{{ tmpl.id }}/history" class="btn btn-sm"><i data-lucide="history" class="icon-xs"></i></a>
+    <form method="post" action="/ticket-templates/{{ tmpl.id }}/delete" style="margin:0"
+          onsubmit="return confirm('Delete template \'{{ tmpl.name }}\'?')">
+      <button type="submit" class="btn btn-danger btn-sm"><i data-lucide="trash-2" class="icon-xs"></i></button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+</div>
+
+<script>
+const _ticketTemplates = [
+  {% for tmpl in templates %}
+  { description: {{ tmpl.description | tojson }}, body: {{ tmpl.body | tojson }} }{{ "," if not loop.last }}
+  {% endfor %}
+];
+
+function copyTicketField(btn, idx, field) {
+  const text = _ticketTemplates[idx][field] || "";
+  copyText(text).then(() => {
+    const orig = btn.textContent;
+    btn.textContent = "✓ Copied";
+    setTimeout(() => btn.textContent = orig, 1800);
+  });
+}
+</script>
+
+{% endif %}
+{% endblock %}

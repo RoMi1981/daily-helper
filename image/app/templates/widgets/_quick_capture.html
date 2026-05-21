@@ -1,0 +1,13 @@
+<form action="/tasks" method="post" class="widget-qc-form">
+  <input type="text" name="title" placeholder="New task…" class="form-control" required autocomplete="off">
+  <div class="widget-qc-row">
+    <input type="date" name="due_date" class="form-control" style="flex:1">
+    <select name="priority" class="form-control" style="flex:0 0 auto">
+      <option value="medium">Medium</option>
+      <option value="high">High</option>
+      <option value="low">Low</option>
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm">Add</button>
+  </div>
+</form>
+<a href="/tasks/new" class="widget-footer-link">{{ t("widget.footer.full_form") }}</a>

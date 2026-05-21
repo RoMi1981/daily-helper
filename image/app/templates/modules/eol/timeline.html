@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+  <h1><i data-lucide="bar-chart-horizontal" class="icon-sm"></i> {{ product }}</h1>
+  <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+    <a href="/eol/product/{{ product }}" class="btn btn-secondary btn-sm">
+      <i data-lucide="list" class="icon-xs"></i> Cycles
+    </a>
+    <a href="/eol" class="btn btn-secondary btn-sm">← Back</a>
+  </div>
+</div>
+
+{% if timeline.cycles %}
+<div class="eol-timeline-wrap">
+
+  <!-- Legend -->
+  <div class="eol-legend">
+    <span class="eol-legend-item"><span class="eol-legend-dot eol-bar-active"></span> Active Support</span>
+    <span class="eol-legend-item"><span class="eol-legend-dot eol-bar-security"></span> Security Support</span>
+    <span class="eol-legend-item"><span class="eol-legend-dot eol-bar-extended"></span> Extended Support</span>
+    <span class="eol-legend-item"><span class="eol-legend-dot eol-today-dot"></span> Today</span>
+  </div>
+
+  <!-- Timeline chart -->
+  <div class="eol-timeline">
+
+    <!-- Rows -->
+    {% for cycle in timeline.cycles %}
+    <div class="eol-timeline-row">
+      <div class="eol-row-label">
+        <span class="eol-row-cycle">{{ cycle.cycle }}</span>
+        {% if cycle.lts %}<span class="badge badge-accent" style="font-size:0.6rem;padding:1px 4px">LTS</span>{% endif %}
+        <span class="eol-status-dot eol-dot-{{ cycle.status }}" title="{% if cycle.status == 'active' %}Active{% elif cycle.status == 'soon' %}EOL Soon ({{ cycle.eol_date }}){% elif cycle.status == 'eol' %}EOL since {{ cycle.eol_date }}{% else %}Unknown{% endif %}"></span>
+      </div>
+      <div class="eol-row-bars">
+        {% for bar in cycle.bars %}
+        <div class="eol-bar eol-bar-{{ bar.phase }}"
+             style="left:{{ bar.left }}%;width:{{ bar.width }}%"
+             title="{{ bar.phase | capitalize }} Support"></div>
+        {% endfor %}
+        <!-- Today line -->
+        <div class="eol-today-line" style="left:{{ timeline.today_pct }}%"></div>
+      </div>
+      <div class="eol-row-info">
+        {% if cycle.latest %}
+        <span class="hint" style="font-size:0.75rem">{{ cycle.latest }}</span>
+        {% endif %}
+        {% if cycle.eol_date %}
+        <span class="hint" style="font-size:0.72rem">EOL {{ cycle.eol_date }}</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+
+    <!-- X-axis -->
+    <div class="eol-xaxis">
+      <div class="eol-xaxis-track">
+        {% for mark in timeline.year_marks %}
+        <div class="eol-year-mark" style="left:{{ mark.pct }}%">{{ mark.year }}</div>
+        {% endfor %}
+        <!-- Today label -->
+        <div class="eol-today-label" style="left:{{ timeline.today_pct }}%">▲</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% else %}
+<p class="widget-empty">No cycle data available for this product.</p>
+{% endif %}
+
+{% endblock %}

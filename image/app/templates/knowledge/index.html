@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Knowledge – Daily Helper{% endblock %}
+
+{% block content %}
+{% if not configured %}
+<div class="alert alert-warning">
+  {{ t("msg.no_repo") | safe }}
+</div>
+{% endif %}
+
+<div class="search-section">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.75rem">
+    <h1>{{ t("label.knowledge_base") }}</h1>
+    <div style="display:flex;align-items:center;gap:0.5rem">
+      <a href="/help/knowledge" class="btn btn-sm" title="Help"><i data-lucide="help-circle" class="icon-xs"></i></a>
+      {% if configured %}<a href="/knowledge/new" class="btn btn-primary">{{ t("action.new_entry") }}</a>{% endif %}
+    </div>
+  </div>
+  <div class="search-box">
+    <input
+      type="search"
+      id="search-input"
+      name="q"
+      placeholder="{{ t('label.search_all') }}"
+      class="search-input"
+      hx-get="/knowledge/search"
+      hx-trigger="keyup changed delay:300ms, search"
+      hx-target="#search-results"
+      hx-indicator="#search-spinner"
+      hx-include="#category-filter"
+      autofocus
+      value="{{ q }}"
+    >
+    <select id="category-filter" name="category" class="search-filter"
+            hx-get="/knowledge/search"
+            hx-trigger="change"
+            hx-target="#search-results"
+            hx-include="#search-input">
+      <option value="">{{ t("label.all_categories") }}</option>
+      {% for item in categories %}
+      <option value="{{ item.category }}">{{ item.category }}</option>
+      {% endfor %}
+    </select>
+    <span id="search-spinner" class="htmx-indicator spinner">⏳</span>
+  </div>
+  <div id="search-results"></div>
+</div>
+{% if q %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var el = document.getElementById('search-input');
+  if (el) htmx.trigger(el, 'search');
+});
+</script>
+{% endif %}
+
+{% if pinned %}
+<section class="recent-section pinned-section">
+  <h2>{{ t("label.pinned") }}</h2>
+  <div class="entry-grid">
+    {% for entry in pinned %}
+    <a href="/knowledge/entries/{{ entry.repo_id }}/{{ entry.category }}/{{ entry.slug }}" class="entry-card entry-card-pinned">
+      <div class="entry-category">📁 {{ entry.category }}</div>
+      <div class="entry-title">{{ entry.title }}</div>
+      {% if entry.excerpt %}
+      <div class="entry-excerpt">{{ entry.excerpt }}</div>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="recent-section">
+  <h2>{{ t("label.recently_added") }}</h2>
+  {% if recent %}
+  <div class="entry-grid">
+    {% for entry in recent %}
+    <a href="/knowledge/entries/{{ entry.repo_id }}/{{ entry.category }}/{{ entry.slug }}" class="entry-card">
+      <div class="entry-category">📁 {{ entry.category }}</div>
+      <div class="entry-title">{{ entry.title }}</div>
+      {% if entry.excerpt %}
+      <div class="entry-excerpt">{{ entry.excerpt }}</div>
+      {% endif %}
+      {% if entry.created %}
+      <div class="entry-date">{{ entry.created }}</div>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty-state">{{ t("empty.knowledge") }} <a href="/knowledge/new">Create your first entry →</a></p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% if not commits %}
+<p class="muted-text">{{ t("history.no_entries_filtered") if (module or author or date_from or date_to) else t("history.no_entries") }}</p>
+{% else %}
+<p class="muted-text" style="margin-bottom:1rem">{{ commits|length }} Commit{{ 's' if commits|length != 1 else '' }}</p>
+
+<div class="audit-timeline">
+{% for commit in commits %}
+<div class="audit-commit">
+  <div class="audit-commit-header">
+    <span class="audit-commit-author"><i data-lucide="user" class="icon-xs"></i> {{ commit.author }}</span>
+    <span class="audit-commit-time muted-text">{{ commit.ts | datetimeformat }}</span>
+    <span class="audit-commit-subject muted-text" title="{{ commit.subject }}">{{ commit.subject[:80] }}{% if commit.subject|length > 80 %}…{% endif %}</span>
+    <code class="audit-commit-hash">{{ commit.hash[:7] }}</code>
+  </div>
+  <ul class="audit-changes">
+    {% for ch in commit.changes %}
+    <li class="audit-change audit-action-{{ ch.action | lower }}">
+      <span class="audit-module-badge">{{ t("nav." ~ ch.module) }}</span>
+      <span class="audit-action-label">{{ t("history.action." ~ ch.action) }}</span>
+      {% if ch.url and not ch.deleted %}
+      <a href="{{ ch.url }}" class="audit-title">{{ ch.title }}</a>
+      {% else %}
+      <span class="audit-title muted-text">{{ ch.title }}</span>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endfor %}
+</div>
+{% endif %}

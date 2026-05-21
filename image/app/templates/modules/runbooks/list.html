@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Runbooks – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="list-checks" class="icon-sm"></i> {{ t("nav.runbooks") }}</h1>
+  <div style="display:flex;align-items:center;gap:0.5rem">
+    <a href="/help/runbooks" class="btn btn-sm" title="Help"><i data-lucide="help-circle" class="icon-xs"></i></a>
+    <a href="/runbooks/new" class="btn btn-primary">{{ t("action.new_runbook") }}</a>
+  </div>
+</div>
+
+{% if saved %}
+<div class="alert alert-success">{{ t("msg.saved_runbook") }}</div>
+{% endif %}
+
+{% if not configured %}
+<div class="alert alert-warning">
+  {{ t("msg.no_repo") | safe }}
+</div>
+{% else %}
+
+<div style="margin-bottom:1rem;display:flex;gap:0.5rem;align-items:center">
+  <button type="button" class="btn btn-sm bulk-select-btn" onclick="toggleBulk('runbooks-bulk')" id="runbooks-select-btn">{{ t("action.select") }}</button>
+</div>
+
+<form method="get" action="/runbooks" style="margin-bottom:1.25rem;display:flex;gap:0.5rem">
+  <input type="text" name="q" class="form-control" value="{{ q }}"
+         placeholder="Search runbooks…" autocomplete="off" style="flex:1">
+  <button type="submit" class="btn">{{ t("action.search") }}</button>
+  {% if q %}<a href="/runbooks" class="btn">Clear</a>{% endif %}
+</form>
+
+{% if not runbooks %}
+<div class="alert alert-info">
+  {% if q %}{{ t("empty.runbooks_search", q=q) }}{% else %}{{ t("empty.runbooks") }} <a href="/runbooks/new">Create one.</a>{% endif %}
+</div>
+{% else %}
+
+<form id="runbooks-bulk" method="post" action="/runbooks/bulk-delete">
+<div class="module-list">
+{% for rb in runbooks %}
+<div class="module-list-row">
+  <input type="checkbox" name="ids" value="{{ rb.id }}" class="bulk-checkbox" onchange="bulkChanged('runbooks-bulk')">
+  <div class="card mod-card" style="flex:1;min-width:0">
+    <a href="/runbooks/{{ rb.id }}" class="mod-card-info">
+      <div class="mod-card-title">{{ rb.title }}</div>
+      <div class="mod-card-meta">
+        <span>{{ rb.steps | length }} step{% if rb.steps | length != 1 %}s{% endif %}</span>
+        {% if rb.description %}<span>{{ rb.description | truncate(100, true, '…') }}</span>{% endif %}
+        <span>Updated {{ rb.updated or rb.created }}</span>
+      </div>
+    </a>
+    <div class="mod-card-actions">
+      <button type="button" class="btn btn-sm fav-btn {% if rb.id in favorite_ids %}fav-active{% endif %}" title="{% if rb.id in favorite_ids %}Remove from favorites{% else %}Add to favorites{% endif %}"
+              hx-post="/api/favorites/toggle" hx-target="this" hx-swap="outerHTML"
+              hx-vals='{"module":"runbooks","entry_id":"{{ rb.id }}","title":"{{ rb.title | e }}","url":"/runbooks/{{ rb.id }}"}'>
+        <i data-lucide="star" class="icon-xs"></i>
+      </button>
+    </div>
+  </div>
+</div>
+{% endfor %}
+</div>
+<div class="bulk-toolbar" id="runbooks-bulk-toolbar">
+  <span class="bulk-count" id="runbooks-bulk-count"></span>
+  <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('{{ t('confirm.delete_selected') }}')">
+    <i data-lucide="trash-2" class="icon-xs"></i> Delete selected
+  </button>
+  <button type="button" class="btn btn-sm" onclick="toggleBulk('runbooks-bulk')">{{ t("action.cancel") }}</button>
+</div>
+</form>
+
+{% endif %}
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleBulk(formId) {
+  const form = document.getElementById(formId);
+  const isActive = form.classList.toggle('bulk-mode');
+  const toolbar = document.getElementById(formId + '-toolbar');
+  const btn = document.getElementById(formId.replace('-bulk','') + '-select-btn');
+  if (!isActive) {
+    form.querySelectorAll('.bulk-checkbox').forEach(cb => cb.checked = false);
+    if (toolbar) toolbar.classList.remove('visible');
+  }
+  if (btn) btn.textContent = isActive ? 'Cancel' : 'Select';
+}
+function bulkChanged(formId) {
+  const form = document.getElementById(formId);
+  const checked = form.querySelectorAll('.bulk-checkbox:checked').length;
+  const toolbar = document.getElementById(formId + '-toolbar');
+  const countEl = document.getElementById(formId + '-count');
+  if (toolbar) toolbar.classList.toggle('visible', checked > 0);
+  if (countEl) countEl.textContent = checked + ' selected';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}{{ "Edit" if template else "New" }} Mail Template – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="mail" class="icon-sm"></i> {{ "Edit" if template else "New" }} Mail Template</h1>
+</div>
+
+<form method="post" action="/mail-templates/{{ template.id + '/edit' if template else 'new' }}" class="entry-form">
+  <div class="form-group">
+    <label>{{ t("field.name_required") }}</label>
+    <input type="text" name="name" class="form-control" required autofocus autocomplete="off"
+           value="{{ template.name if template else '' }}" placeholder="Template name…">
+  </div>
+  <div class="form-group">
+    <label>{{ t("field.to") }}</label>
+    <input type="text" name="to" class="form-control" autocomplete="off"
+           value="{{ template.to if template else '' }}" placeholder="recipient@example.com, …">
+    <p class="field-hint">Optional. Comma-separated addresses. Pre-fills the recipient when copying the template.</p>
+  </div>
+  <div class="form-group">
+    <label>{{ t("field.cc") }}</label>
+    <input type="text" name="cc" class="form-control" autocomplete="off"
+           value="{{ template.cc if template else '' }}" placeholder="cc@example.com, …">
+    <p class="field-hint">Optional. Comma-separated addresses.</p>
+  </div>
+  <div class="form-group">
+    <label>{{ t("field.subject") }}</label>
+    <input type="text" name="subject" class="form-control" autocomplete="off"
+           value="{{ template.subject if template else '' }}" placeholder="Email subject…">
+  </div>
+  <div class="form-group">
+    <label>{{ t("field.body") }}</label>
+    <textarea name="body" class="form-control" rows="10" placeholder="Email body…">{{ template.body if template else '' }}</textarea>
+    <p class="field-hint">Plain text. The entire template is copied to clipboard via the copy button in the list.</p>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">{{ t("action.save") if template else t("action.create") }}</button>
+    <a href="/mail-templates" class="btn">{{ t("action.cancel") }}</a>
+  </div>
+</form>
+{% endblock %}

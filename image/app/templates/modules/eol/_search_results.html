@@ -1,0 +1,17 @@
+{% if results %}
+<ul class="eol-product-list">
+  {% for product in results %}
+  <li class="eol-product-item">
+    <a href="/eol/product/{{ product }}" class="eol-product-link">
+      <i data-lucide="package" class="icon-xs" style="flex-shrink:0"></i>
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ product }}</span>
+    </a>
+    <a href="/eol/timeline/{{ product }}" class="btn btn-secondary btn-xs">
+      <i data-lucide="bar-chart-horizontal" class="icon-xs"></i> Timeline
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% elif request.query_params.get('q') %}
+<p class="hint" style="margin-top:1rem">No results for "{{ request.query_params.get('q') }}".</p>
+{% endif %}

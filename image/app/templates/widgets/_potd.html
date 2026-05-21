@@ -1,0 +1,24 @@
+{% if potd_entry %}
+  {% if potd_entry.ext != "pdf" %}
+  <div style="position:relative">
+    <img src="/potd/{{ potd_entry.id }}/raw" alt="Picture of the Day"
+         style="width:100%;border-radius:4px;display:block;max-height:220px;object-fit:contain;cursor:zoom-in"
+         onclick="openLightbox(this.src)">
+    <button onclick="copyImage(this, '/potd/{{ potd_entry.id }}/raw')"
+            class="btn btn-secondary btn-sm"
+            style="position:absolute;top:0.4rem;right:0.4rem;padding:0.2rem 0.5rem;font-size:0.75rem;opacity:0.85">
+      <i data-lucide="copy" class="icon-xs"></i>
+    </button>
+  </div>
+  {% else %}
+  <a href="/potd/{{ potd_entry.id }}/raw" target="_blank" class="btn btn-secondary"
+     style="display:flex;align-items:center;gap:0.5rem;justify-content:center;text-decoration:none">
+    <i data-lucide="file-text" class="icon-sm"></i>
+    PDF{% if potd_entry.page %} · p.{{ potd_entry.page }}{% endif %}
+    <span style="font-size:0.75rem;color:var(--text-muted);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ potd_entry.id }}</span>
+  </a>
+  {% endif %}
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.no_picture") }}</p>
+{% endif %}
+<a href="/potd" class="widget-footer-link">{{ t("widget.footer.open_potd") }}</a>

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Appointments – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="calendar-days" class="icon-sm"></i> {{ t("nav.appointments") }}</h1>
+  <a href="/help/appointments" class="btn btn-sm" title="Help"><i data-lucide="help-circle" class="icon-xs"></i></a>
+</div>
+
+{% if not configured %}
+<div class="alert alert-warning">
+  {{ t("msg.no_repo") | safe }}
+</div>
+{% else %}
+
+<!-- Year navigation & actions -->
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:0.75rem;margin-bottom:1.25rem">
+  <div style="display:flex;align-items:center;gap:0.5rem">
+    <a href="/appointments?year={{ year - 1 }}" class="btn btn-secondary btn-sm">‹</a>
+    <strong>{{ year }}</strong>
+    <a href="/appointments?year={{ year + 1 }}" class="btn btn-secondary btn-sm">›</a>
+  </div>
+  <div style="display:flex;gap:0.4rem">
+    <a href="/appointments/calendar" class="btn btn-secondary btn-sm"><i data-lucide="calendar" class="icon-xs"></i> {{ t("action.calendar") }}</a>
+    <a href="#new-form" class="btn btn-primary btn-sm">+ {{ t("action.new") }}</a>
+  </div>
+</div>
+
+<!-- New appointment form (hidden, shown via #new-form :target) -->
+<div id="new-form">
+  <h2 style="margin-top:0">{{ t("label.new_appointment") }}</h2>
+  <form method="post" action="/appointments" class="entry-form">
+    <div class="form-group">
+      <label>{{ t("field.title_required") }}</label>
+      <input type="text" name="title" class="form-control" placeholder="e.g. Python Advanced Training" required>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>{{ t("field.from_required") }}</label>
+        <input type="date" name="start_date" id="appt-start" class="form-control" required value="{{ today }}"
+               onchange="var e=document.getElementById('appt-end');if(!e.value||e.value<this.value)e.value=this.value;">
+      </div>
+      <div class="form-group">
+        <label>{{ t("field.to_required") }}</label>
+        <input type="date" name="end_date" id="appt-end" class="form-control" required value="{{ today }}">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>{{ t("field.type") }}</label>
+        <select name="type" class="form-control">
+          {% for val, label in appt_types %}
+          <option value="{{ val }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>{{ t("field.recurring") }}</label>
+        <select name="recurring" class="form-control">
+          <option value="none">{{ t("recurring.none") }}</option>
+          <option value="weekly">{{ t("recurring.weekly") }}</option>
+          <option value="monthly">{{ t("recurring.monthly") }}</option>
+          <option value="yearly">{{ t("recurring.yearly") }}</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>{{ t("field.note") }}</label>
+      <input type="text" name="note" class="form-control" placeholder="Optional…">
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+      <a href="/appointments" class="btn btn-secondary">{{ t("action.cancel") }}</a>
+    </div>
+  </form>
+</div>
+
+<!-- Appointments list -->
+<div class="vacation-entries">
+  <h2>{{ t("label.appointments_year", year=year) }}</h2>
+  {% if entries %}
+  <div class="vacation-list" id="appt-list">
+    {% for entry in entries %}
+    <div class="vacation-card" data-start="{{ entry.start_date }}">
+      <div class="vacation-card-main">
+        <div class="vacation-dates">
+          <strong>{{ entry.start_date }}</strong>
+          {% if entry.start_date != entry.end_date %} – <strong>{{ entry.end_date }}</strong>{% endif %}
+        </div>
+        <span class="vacation-status-badge">
+          <i data-lucide="{{ type_icons.get(entry.type, 'calendar') }}" class="icon-xs"></i> {{ entry.type | replace('_', ' ') | title }}
+        </span>
+        {% if entry.recurring and entry.recurring != 'none' %}
+        <span class="appt-recurring-badge" title="Recurring: {{ entry.recurring }}"><i data-lucide="repeat" class="icon-xs"></i> {{ entry.recurring }}</span>
+        {% endif %}
+        <span style="font-weight:600">{{ entry.title }}</span>
+        {% if entry.note %}<span class="vacation-note">{{ entry.note }}</span>{% endif %}
+      </div>
+      <div class="vacation-card-actions">
+        {% if ics_profiles %}
+        <button type="button" class="btn btn-secondary btn-sm"
+                title="Download ICS files"
+                onclick="downloadApptIcs('{{ entry.id }}', [{% for p in ics_profiles %}'{{ p.id }}'{% if not loop.last %},{% endif %}{% endfor %}])"><i data-lucide="download" class="icon-xs"></i></button>
+        {% else %}
+        <a href="/appointments/{{ entry.id }}/export.ics" class="btn btn-secondary btn-sm" title="Download for Outlook"><i data-lucide="download" class="icon-xs"></i></a>
+        {% endif %}
+        <a href="/appointments/{{ entry.id }}/edit" class="btn btn-secondary btn-sm"><i data-lucide="pencil" class="icon-xs"></i></a>
+        <form method="post" action="/appointments/{{ entry.id }}/delete" style="display:inline"
+              onsubmit="return confirm('{{ t('confirm.delete_appointment') }}')">
+          <button type="submit" class="btn btn-danger btn-sm"><i data-lucide="trash-2" class="icon-xs"></i></button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty-state">{{ t("empty.appointments_year", year=year) }}</p>
+  {% endif %}
+</div>
+
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var list = document.getElementById('appt-list');
+  if (!list) return;
+  var cards = Array.from(list.querySelectorAll('.vacation-card'));
+  cards.sort(function(a, b) {
+    return a.dataset.start.localeCompare(b.dataset.start);
+  });
+  cards.forEach(function(c) { list.appendChild(c); });
+});
+
+async function downloadApptIcs(entryId, profileIds) {
+  for (const pid of profileIds) {
+    const url = `/appointments/${entryId}/export.ics?profile=${pid}`;
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    const cd = resp.headers.get('Content-Disposition') || '';
+    const match = cd.match(/filename="?([^"]+)"?/);
+    const filename = match ? match[1] : `appointment-${pid}.ics`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    if (profileIds.length > 1) await new Promise(r => setTimeout(r, 600));
+  }
+}
+</script>
+{% endblock %}

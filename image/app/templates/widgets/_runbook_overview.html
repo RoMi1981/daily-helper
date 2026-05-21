@@ -1,0 +1,13 @@
+{% if runbooks %}
+<ul class="widget-task-list">
+  {% for rb in runbooks %}
+  <li class="widget-task-item">
+    <a href="/runbooks/{{ rb.id }}" class="widget-task-title">{{ rb.title }}</a>
+    <span class="hint" style="font-size:0.75rem;white-space:nowrap">{{ rb.steps | length }} steps</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.no_runbooks") }}</p>
+{% endif %}
+<a href="/runbooks" class="widget-footer-link">{{ t("widget.footer.all_runbooks") }}</a>

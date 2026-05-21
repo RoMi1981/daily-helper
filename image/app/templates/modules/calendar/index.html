@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Calendar {{ cal.month_name }} {{ cal.year }} – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap">
+    <h1><i data-lucide="calendar" class="icon-sm"></i> {{ cal.month_name }} {{ cal.year }}</h1>
+    <div style="display:flex; gap:0.5rem">
+      <a href="/calendar?year={{ cal.prev_year }}&month={{ cal.prev_month }}" class="btn btn-secondary btn-sm">‹</a>
+      <a href="/calendar" class="btn btn-secondary btn-sm">{{ t("cal.today") }}</a>
+      <a href="/calendar?year={{ cal.next_year }}&month={{ cal.next_month }}" class="btn btn-secondary btn-sm">›</a>
+      {% if sprint_configured %}<a href="/calendar/capacity" class="btn btn-secondary btn-sm"><i data-lucide="bar-chart-2" class="icon-xs"></i> {{ t("action.capacity") }}</a>{% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="calendar-grid" style="grid-template-columns: repeat({{ 7 if show_weekends else 5 }}, 1fr)">
+  {% for header in cal.weekday_headers %}
+  {% if show_weekends or loop.index0 < 5 %}
+  <div class="calendar-header">{{ header }}</div>
+  {% endif %}
+  {% endfor %}
+
+  {% for week in cal.weeks %}
+    {% for day in week %}
+    {% if show_weekends or loop.index0 < 5 %}
+      {% if day is none %}
+      <div class="calendar-day calendar-day-empty"></div>
+      {% else %}
+      <div class="calendar-day
+        {% if day.is_today %}calendar-today{% endif %}
+        {% if day.is_weekend %}calendar-weekend{% endif %}
+        {% if day.is_holiday %}calendar-holiday{% endif %}
+        {% if day.is_vacation %}calendar-vacation{% endif %}
+        {% if day.is_vacation_pending %}calendar-vacation-pending{% endif %}
+        {% if day.is_appointment %}calendar-appointment{% endif %}
+      ">
+        <span class="calendar-day-num">{{ day.day }}</span>
+        {% if day.sprint_name %}<span class="calendar-sprint-label" title="{{ day.sprint_name }}"><i data-lucide="flag" class="icon-xs"></i></span>{% endif %}
+        {% if day.is_holiday %}<span class="calendar-holiday-name" title="{{ day.holiday_name }}"><i data-lucide="star" class="icon-xs"></i></span>{% endif %}
+        {% if day.is_vacation %}<span class="calendar-vacation-dot"><i data-lucide="palmtree" class="icon-xs"></i></span>{% endif %}
+        {% if day.is_vacation_pending %}<span class="calendar-vacation-dot" style="opacity:0.5"><i data-lucide="palmtree" class="icon-xs"></i></span>{% endif %}
+        {% if day.is_appointment %}
+          {% for appt in day.appointments %}
+          <i data-lucide="{{ type_icons.get(appt.type, 'calendar') }}" class="icon-xs" title="{{ appt.title }}"></i>
+          {% endfor %}
+        {% endif %}
+        {% for task in day.tasks %}
+        <span class="calendar-vacation-dot" title="Task: {{ task.title }}"><i data-lucide="check-square-2" class="icon-xs"></i></span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    {% endif %}
+    {% endfor %}
+  {% endfor %}
+</div>
+
+<div class="calendar-legend">
+  {% if show_vacations %}
+  <span class="legend-item"><span class="legend-dot calendar-vacation"></span> {{ t("cal.vacation") }}</span>
+  <span class="legend-item"><span class="legend-dot calendar-vacation-pending"></span> {{ t("cal.vacation_pending") }}</span>
+  {% endif %}
+  {% if show_appointments %}
+  <span class="legend-item"><span class="legend-dot calendar-appointment"></span> {{ t("cal.appointment") }}</span>
+  {% endif %}
+  <span class="legend-item"><span class="legend-dot calendar-holiday"></span> {{ t("cal.holiday") }}</span>
+  {% if show_weekends %}<span class="legend-item"><span class="legend-dot calendar-weekend"></span> {{ t("cal.weekend") }}</span>{% endif %}
+  <span class="legend-item"><span class="legend-dot calendar-today"></span> {{ t("cal.today") }}</span>
+  {% if task_entries %}<span class="legend-item"><i data-lucide="check-square-2" class="icon-xs"></i> {{ t("action.task_deadline") }}</span>{% endif %}
+  {% if sprint_configured %}<span class="legend-item"><i data-lucide="flag" class="icon-xs"></i> {{ t("action.sprint_start") }}</span>{% endif %}
+</div>
+
+{# ── Event list ── #}
+{% set month_str = '%04d-%02d'|format(cal.year, cal.month) %}
+
+{# Collect holidays #}
+{% set ns = namespace(holiday_days=[]) %}
+{% for week in cal.weeks %}
+  {% for day in week %}
+    {% if day and day.is_holiday %}
+      {% set ns.holiday_days = ns.holiday_days + [day] %}
+    {% endif %}
+  {% endfor %}
+{% endfor %}
+
+{# Vacation entries overlapping this month #}
+{% set vac_month = [] %}
+{% for e in vac_entries %}
+  {% if e.start_date[:7] <= month_str and e.end_date[:7] >= month_str %}
+    {% set _ = vac_month.append(e) %}
+  {% endif %}
+{% endfor %}
+
+{# Appointment entries overlapping this month #}
+{% set appt_month = [] %}
+{% for e in appt_entries %}
+  {% if e.start_date[:7] <= month_str and e.end_date[:7] >= month_str %}
+    {% set _ = appt_month.append(e) %}
+  {% endif %}
+{% endfor %}
+
+{# Task deadlines in this month #}
+{% set task_month = [] %}
+{% for te in task_entries %}
+  {% if not te.done and te.due_date and te.due_date[:7] == month_str %}
+    {% set _ = task_month.append(te) %}
+  {% endif %}
+{% endfor %}
+
+{% if ns.holiday_days or vac_month or appt_month or task_month %}
+<div style="margin-top:1.5rem">
+  <h3 style="font-size:1rem;margin-bottom:0.75rem;color:var(--text-muted)">{{ cal.month_name }} {{ cal.year }} — {{ t("cal.events") }}</h3>
+  <ul style="list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:0.4rem">
+
+    {% for day in ns.holiday_days | sort(attribute='day') %}
+    <li style="display:flex;gap:0.75rem;align-items:baseline;font-size:0.9rem">
+      <span style="min-width:5rem;color:var(--text-muted);font-variant-numeric:tabular-nums">
+        {{ '%02d'|format(day.day) }}.{{ '%02d'|format(cal.month) }}.
+      </span>
+      <span><i data-lucide="star" class="icon-xs"></i> {{ day.holiday_name }}</span>
+      {% if holiday_ics_profiles %}
+      {% set hdate = '%04d-%02d-%02d'|format(cal.year, cal.month, day.day) %}
+      <button type="button" class="btn btn-secondary btn-sm" style="margin-left:auto"
+              title="Download ICS"
+              onclick="downloadHolidayIcs('{{ hdate }}', '{{ day.holiday_name|replace("'", "\\'") }}', [{% for p in holiday_ics_profiles %}'{{ p.id }}'{% if not loop.last %},{% endif %}{% endfor %}])">
+        <i data-lucide="download" class="icon-xs"></i>
+      </button>
+      {% endif %}
+    </li>
+    {% endfor %}
+
+    {% for e in vac_month | sort(attribute='start_date') %}
+    <li style="display:flex;gap:0.75rem;align-items:baseline;font-size:0.9rem">
+      <span style="min-width:5rem;color:var(--text-muted);font-variant-numeric:tabular-nums">
+        {{ e.start_date[8:] }}.{{ e.start_date[5:7] }}. – {{ e.end_date[8:] }}.{{ e.end_date[5:7] }}.
+      </span>
+      <span>
+        <i data-lucide="palmtree" class="icon-xs"></i>
+        {% if e.status == 'approved' %}<i data-lucide='check-circle' class='icon-xs'></i>
+        {% elif e.status == 'documented' %}<i data-lucide='file-check' class='icon-xs'></i>
+        {% elif e.status == 'planned' %}<i data-lucide='clock' class='icon-xs'></i>
+        {% elif e.status == 'rejected' %}<i data-lucide='x-circle' class='icon-xs'></i>
+        {% else %}<i data-lucide='hourglass' class='icon-xs'></i>{% endif %}
+        {% if e.note %} {{ e.note }}{% else %} {{ t("cal.vacation") }}{% endif %}
+      </span>
+    </li>
+    {% endfor %}
+
+    {% for e in appt_month | sort(attribute='start_date') %}
+    <li style="display:flex;gap:0.75rem;align-items:baseline;font-size:0.9rem">
+      <span style="min-width:5rem;color:var(--text-muted);font-variant-numeric:tabular-nums">
+        {{ e.start_date[8:] }}.{{ e.start_date[5:7] }}.
+        {% if e.start_date != e.end_date %} – {{ e.end_date[8:] }}.{{ e.end_date[5:7] }}.{% endif %}
+      </span>
+      <span>
+        <i data-lucide="{{ type_icons.get(e.type, 'calendar') }}" class="icon-xs"></i>
+        {{ e.title }}
+        {% if e.note %} — {{ e.note }}{% endif %}
+      </span>
+    </li>
+    {% endfor %}
+
+    {% for te in task_month | sort(attribute='due_date') %}
+    <li style="display:flex;gap:0.75rem;align-items:baseline;font-size:0.9rem">
+      <span style="min-width:5rem;color:var(--text-muted);font-variant-numeric:tabular-nums">
+        {{ te.due_date[8:] }}.{{ te.due_date[5:7] }}.
+      </span>
+      <span>
+        <i data-lucide="check-square-2" class="icon-xs"></i>
+        <a href="/tasks" style="color:inherit">{{ te.title }}</a>
+        {% if te.priority == 'high' %} <span style="color:var(--danger);font-size:0.8em"><i data-lucide="alert-circle" class="icon-xs"></i> {{ t("priority.high") }}</span>{% endif %}
+      </span>
+    </li>
+    {% endfor %}
+
+  </ul>
+</div>
+{% endif %}
+
+<script>
+async function downloadHolidayIcs(date, name, profileIds) {
+  for (const pid of profileIds) {
+    const url = `/calendar/holiday.ics?date=${encodeURIComponent(date)}&name=${encodeURIComponent(name)}&profile=${pid}`;
+    const resp = await fetch(url);
+    const blob = await resp.blob();
+    const cd = resp.headers.get('content-disposition') || '';
+    const match = cd.match(/filename=([^\s;]+)/);
+    const filename = match ? match[1] : `holiday-${date}-${pid}.ics`;
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+    if (profileIds.length > 1) await new Promise(r => setTimeout(r, 600));
+  }
+}
+</script>
+{% endblock %}

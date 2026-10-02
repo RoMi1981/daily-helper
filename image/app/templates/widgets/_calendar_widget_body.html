@@ -1,0 +1,57 @@
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.5rem">
+  <button class="btn btn-secondary btn-sm"
+          hx-get="/widgets/calendar-partial?year={{ cal.prev_year }}&month={{ cal.prev_month }}"
+          hx-target="#widget-calendar-body"
+          hx-swap="innerHTML">‹</button>
+  <span style="font-weight:600;font-size:0.95rem">{{ cal.month_name }} {{ cal.year }}</span>
+  <button class="btn btn-secondary btn-sm"
+          hx-get="/widgets/calendar-partial?year={{ cal.next_year }}&month={{ cal.next_month }}"
+          hx-target="#widget-calendar-body"
+          hx-swap="innerHTML">›</button>
+</div>
+
+<div class="calendar-grid" style="gap:1px">
+  {% for header in cal.weekday_headers %}
+  <div class="calendar-header" style="padding:0.25rem 0;font-size:0.7rem">{{ header }}</div>
+  {% endfor %}
+
+  {% for week in cal.weeks %}
+    {% for day in week %}
+      {% if day is none %}
+      <div class="calendar-day calendar-day-empty" style="min-height:2.2rem"></div>
+      {% else %}
+      <div class="calendar-day
+        {% if day.is_today %}calendar-today{% endif %}
+        {% if day.is_weekend and not day.is_today %}calendar-weekend{% endif %}
+        {% if day.is_holiday %}calendar-holiday{% endif %}
+        {% if day.is_vacation %}calendar-vacation{% endif %}
+        {% if day.is_vacation_pending %}calendar-vacation-pending{% endif %}
+        {% if day.is_appointment and not day.is_vacation %}calendar-appointment{% endif %}
+      " style="min-height:2.2rem;padding:0.15rem 0.2rem;font-size:0.78rem">
+        <span class="calendar-day-num" style="font-size:0.78rem">{{ day.day }}</span>
+        {% if day.sprint_name %}
+        <span title="{{ day.sprint_name }}" style="font-size:0.6rem;color:var(--text-muted);line-height:1;display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">{{ day.sprint_name }}</span>
+        {% endif %}
+        {% if day.is_holiday %}
+        <span title="{{ day.holiday_name }}" style="font-size:0.65rem;color:#d69e2e;line-height:1">★</span>
+        {% endif %}
+        {% if day.tasks %}
+        <span title="{{ day.tasks | map(attribute='title') | join(', ') }}" style="font-size:0.65rem;color:var(--text-muted)">{{ day.tasks | length }}✓</span>
+        {% endif %}
+        {% if day.appointments %}
+        {% for appt in day.appointments %}
+        <span title="{{ appt.title }}" style="font-size:0.6rem;color:#6366f1;line-height:1;display:block;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">{{ appt.title }}</span>
+        {% endfor %}
+        {% endif %}
+      </div>
+      {% endif %}
+    {% endfor %}
+  {% endfor %}
+</div>
+
+<div class="calendar-legend" style="margin-top:0.4rem;font-size:0.72rem;gap:0.6rem">
+  <span class="legend-item"><span class="legend-dot calendar-today"></span>{{ t("widget.calendar.today") }}</span>
+  <span class="legend-item"><span class="legend-dot calendar-vacation"></span>{{ t("widget.calendar.vacation") }}</span>
+  <span class="legend-item"><span class="legend-dot calendar-appointment"></span>{{ t("widget.calendar.appointment") }}</span>
+  <span class="legend-item"><span class="legend-dot calendar-holiday"></span>{{ t("widget.calendar.holiday") }}</span>
+</div>

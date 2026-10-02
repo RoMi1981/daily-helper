@@ -1,0 +1,6 @@
+{% if motd_text %}
+<p class="widget-motd-text">{{ motd_text }}</p>
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.no_message") }}</p>
+{% endif %}
+<a href="/motd" class="widget-footer-link">{{ t("widget.footer.manage_messages") }}</a>

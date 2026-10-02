@@ -1,0 +1,20 @@
+{% if ca_pem %}
+<div class="tls-ca-info">
+  <div class="form-group">
+    <label>{{ t("tls.ca_certificate") }}<span class="hint">{{ t("tls.for_browser_import") }}</span></label>
+    <textarea class="form-control monospace" rows="6" readonly id="ca-pem-display">{{ ca_pem }}</textarea>
+    <div class="input-row" style="margin-top:0.4rem">
+      <button type="button" class="btn btn-secondary btn-sm"
+              onclick="copyText(document.getElementById('ca-pem-display').value)">{{ t("tls.copy_ca") }}</button>
+      <a href="/settings/tls/ca.crt" download="daily-helper-ca.crt" class="btn btn-secondary btn-sm">{{ t("tls.download_ca") }}</a>
+    </div>
+    <div class="field-hint" style="margin-top:0.75rem">
+      <strong>CN:</strong> {{ cn }} &nbsp;·&nbsp;
+      <strong>{{ t("tls.sans") }}</strong> {{ sans | join(", ") }} &nbsp;·&nbsp;
+      <strong>{{ t("tls.expires") }}</strong> {{ expiry }}<br><br>
+      <strong>Chrome:</strong> <code>chrome://settings/certificates</code>{{ t("tls.chrome_steps") }}<br>
+      <strong>Firefox:</strong> <code>about:preferences#privacy</code>{{ t("tls.firefox_steps") }}<br>
+      <strong>Windows:</strong>{{ t("tls.windows_action") }}<code>ca.crt</code>{{ t("tls.windows_steps") }}</div>
+  </div>
+</div>
+{% endif %}

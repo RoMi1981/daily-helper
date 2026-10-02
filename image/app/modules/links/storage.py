@@ -1,0 +1,182 @@
+"""Links storage — YAML files in links/{section_id}/ subdirectory."""
+
+import logging
+import uuid
+from datetime import date
+from pathlib import Path
+
+import yaml
+
+logger = logging.getLogger(__name__)
+
+
+def _new_id() -> str:
+    return uuid.uuid4().hex[:8]
+
+
+def link_storages(git_storage) -> list["LinkStorage"]:
+    """One LinkStorage per configured section.
+
+    Links live in links/{section_id}/, and LinkStorage defaults to "default".
+    Every caller that wants *all* links of a repo has to walk the sections —
+    building the default one alone silently ignores everything the user filed
+    elsewhere, which is what the global search and the bookmarks widget did.
+    """
+    from core import settings_store
+
+    section_ids = [s["id"] for s in settings_store.get_link_sections()] or ["default"]
+    return [LinkStorage(git_storage, sid) for sid in section_ids]
+
+
+class LinkStorage:
+    """Manages links/{section_id}/{id}.yaml files inside the data git repo."""
+
+    def __init__(self, git_storage, section_id: str = "default"):
+        self._git = git_storage
+        self._section_id = section_id
+        self._dir = Path(git_storage.local_path) / "links" / section_id
+
+    @property
+    def section_id(self) -> str:
+        """Callers that walk all sections need to label what they got back."""
+        return self._section_id
+
+    def _path(self, link_id: str) -> Path:
+        return self._dir / f"{link_id}.yaml"
+
+    def _prefix(self) -> str:
+        return f"links/{self._section_id}"
+
+    def _read(self, path: Path) -> dict | None:
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8"))
+            return data if isinstance(data, dict) else None
+        except Exception as e:
+            logger.warning("Failed to read link %s: %s", path, e)
+            return None
+
+    def _write(self, link: dict):
+        self._dir.mkdir(parents=True, exist_ok=True)
+        self._path(link["id"]).write_text(yaml.dump(link, allow_unicode=True, sort_keys=False), encoding="utf-8")
+
+    def _list_raw(self) -> list[dict]:
+        """Scan the section directory once, unfiltered. list_links() and
+        get_categories() both build on this so a caller that needs both the
+        (possibly filtered) links and the category set can share one scan by
+        calling this directly instead of triggering two independent ones."""
+        items = []
+        for name in self._git.list_committed(self._prefix()):
+            if not name.endswith(".yaml"):
+                continue
+            raw = self._git.read_committed(f"{self._prefix()}/{name}")
+            if raw is None:
+                continue
+            link = yaml.safe_load(raw.decode("utf-8"))
+            if isinstance(link, dict):
+                items.append(link)
+        return items
+
+    def list_links(self, query: str = "", category: str = "") -> list[dict]:
+        q = query.strip().lower()
+        cat = category.strip().lower()
+        items = self._list_raw()
+        if q:
+            items = [
+                link
+                for link in items
+                if any(q in link.get(field, "").lower() for field in ("title", "url", "description", "category"))
+            ]
+        if cat:
+            items = [link for link in items if link.get("category", "").lower() == cat]
+        return sorted(items, key=lambda x: (x.get("category", "").lower(), x.get("title", "").lower()))
+
+    def get_categories(self) -> list[str]:
+        return sorted({link["category"] for link in self._list_raw() if link.get("category")})
+
+    def get_link(self, link_id: str) -> dict | None:
+        raw = self._git.read_committed(f"{self._prefix()}/{link_id}.yaml")
+        if raw is None:
+            return None
+        data = yaml.safe_load(raw.decode("utf-8"))
+        return data if isinstance(data, dict) else None
+
+    def create_link(self, data: dict) -> dict:
+        link = {
+            "id": _new_id(),
+            "title": data.get("title", "").strip(),
+            "url": data.get("url", "").strip(),
+            "category": data.get("category", "").strip(),
+            "description": data.get("description", "").strip(),
+            "created": date.today().isoformat(),
+        }
+        with self._git.write_lock():
+            self._git._pull()
+            self._write(link)
+            self._git._commit_and_push(f"links: add '{link['title']}'")
+        return link
+
+    def update_link(self, link_id: str, data: dict) -> dict | None:
+        with self._git.write_lock():
+            self._git._pull()
+            link = self.get_link(link_id)
+            if not link:
+                return None
+            link.update(
+                {
+                    "title": data.get("title", link["title"]).strip(),
+                    "url": data.get("url", link.get("url", "")).strip(),
+                    "category": data.get("category", link.get("category", "")).strip(),
+                    "description": data.get("description", link.get("description", "")).strip(),
+                }
+            )
+            self._write(link)
+            self._git._commit_and_push(f"links: update '{link['title']}'")
+        return link
+
+    def delete_link(self, link_id: str) -> bool:
+        with self._git.write_lock():
+            self._git._pull()
+            p = self._path(link_id)
+            if not p.exists():
+                return False
+            link = self._read(p)
+            p.unlink()
+            title = link.get("title", link_id) if link else link_id
+            self._git._commit_and_push(f"links: delete '{title}'")
+        return True
+
+    def move_links_to_section(self, link_ids: list[str], target_section_id: str) -> int:
+        """Move links from this section to target_section_id within the same git repo."""
+        if not link_ids:
+            return 0
+        target_dir = Path(self._git.local_path) / "links" / target_section_id
+        with self._git.write_lock():
+            self._git._pull()
+            moved = 0
+            for lid in link_ids:
+                src = self._path(lid)
+                if not src.exists():
+                    continue
+                target_dir.mkdir(parents=True, exist_ok=True)
+                dst = target_dir / f"{lid}.yaml"
+                dst.write_bytes(src.read_bytes())
+                src.unlink()
+                moved += 1
+            if moved:
+                self._git._commit_and_push(f"links: move {moved} link(s) to '{target_section_id}'")
+        return moved
+
+    def bulk_delete_links(self, link_ids: list[str]) -> int:
+        if not link_ids:
+            return 0
+        with self._git.write_lock():
+            self._git._pull()
+            deleted = 0
+            for lid in link_ids:
+                p = self._path(lid)
+                if p.exists():
+                    p.unlink()
+                    deleted += 1
+            if deleted:
+                self._git._commit_and_push(f"links: bulk delete {deleted} link(s)")
+        return deleted

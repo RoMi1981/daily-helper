@@ -1,0 +1,12 @@
+{% if favorites %}
+<ul class="home-favorites-list">
+  {% for fav in favorites %}
+  <li class="home-fav-item">
+    <span class="home-fav-module">{{ fav.module }}</span>
+    <a href="{{ fav.url }}" class="home-fav-title">{{ fav.title }}</a>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.no_favorites") }}</p>
+{% endif %}

@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Import Messages – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="message-square" class="icon-sm"></i> {{ t("label.import_messages") }}</h1>
+</div>
+
+<div style="max-width:640px">
+  <p style="color:var(--text-muted);margin-bottom:1.5rem">{{ t("motd.import.hint") }}</p>
+
+  <div style="display:flex;flex-direction:column;gap:1.5rem">
+
+    <!-- Textarea import -->
+    <div class="card" style="padding:1.25rem">
+      <h2 style="margin:0 0 1rem;font-size:1rem">{{ t("label.paste_messages") }}</h2>
+      <form method="post" action="/motd/import">
+        <div class="form-group">
+          <textarea name="text" class="form-control" rows="10" autofocus
+                    placeholder="{{ t('ph.motd_import') }}"></textarea>
+          <p class="field-hint">{{ t("motd.import.one_per_line") }}</p>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">{{ t("action.import") }}</button>
+          <a href="/motd" class="btn">{{ t("action.cancel") }}</a>
+        </div>
+      </form>
+    </div>
+
+    <!-- File upload -->
+    <div class="card" style="padding:1.25rem">
+      <h2 style="margin:0 0 1rem;font-size:1rem">{{ t("label.upload_file") }}</h2>
+      <form method="post" action="/motd/import-file" enctype="multipart/form-data">
+        <div class="form-group">
+          <input type="file" name="file" class="form-control" accept=".txt,text/plain">
+          <p class="field-hint">{{ t("motd.import.file_hint") }}</p>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">{{ t("action.upload_import") }}</button>
+          <a href="/motd" class="btn">{{ t("action.cancel") }}</a>
+        </div>
+      </form>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

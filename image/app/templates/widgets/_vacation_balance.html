@@ -1,0 +1,30 @@
+{% if vacation_balance %}
+{% set b = vacation_balance %}
+<div class="widget-vac-balance">
+  <div class="widget-vac-row">
+    <span class="widget-vac-label">{{ t("vacation.stat.total") }}</span>
+    <span class="widget-vac-val">{{ t('label.days_n', n=b.total_days) }}</span>
+  </div>
+  <div class="widget-vac-row">
+    <span class="widget-vac-label">{{ t("vacation.stat.used") }}</span>
+    <span class="widget-vac-val">{{ t('label.days_n', n=b.used_days) }}</span>
+  </div>
+  {% if b.planned_days %}
+  <div class="widget-vac-row">
+    <span class="widget-vac-label">{{ t("vacation.stat.planned") }}</span>
+    <span class="widget-vac-val">{{ t('label.days_n', n=b.planned_days) }}</span>
+  </div>
+  {% endif %}
+  <div class="widget-vac-row widget-vac-remaining">
+    <span class="widget-vac-label">{{ t("vacation.stat.remaining") }}</span>
+    <span class="widget-vac-val">{{ t('label.days_n', n=b.remaining_days) }}</span>
+  </div>
+  <div class="widget-sprint-bar-wrap" style="margin-top:0.5rem">
+    {% set used_pct = [(b.used_days / b.total_days * 100) | round | int, 100] | min if b.total_days else 0 %}
+    <div class="widget-sprint-bar {% if used_pct > 80 %}widget-bar-warn{% endif %}" style="width:{{ used_pct }}%"></div>
+  </div>
+</div>
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.no_vacation_data") }}</p>
+{% endif %}
+<a href="/vacations" class="widget-footer-link">{{ t("widget.footer.vacation_overview") }}</a>

@@ -1,0 +1,15 @@
+{% if rss_articles %}
+<ul class="widget-task-list">
+  {% for item in rss_articles %}
+  <li class="widget-task-item">
+    <a href="{{ item.link }}" target="_blank" rel="noopener" class="widget-task-title">{{ item.title[:70] if item.title else "(no title)" }}</a>
+    {% if item.feed_name and rss_feeds_for_settings | length > 1 %}
+    <span class="hint" style="font-size:0.7rem;white-space:nowrap">{{ item.feed_name[:15] }}</span>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.no_rss_articles") }}</p>
+{% endif %}
+<a href="/rss" class="widget-footer-link">{{ t("widget.footer.open_rss") }}</a>

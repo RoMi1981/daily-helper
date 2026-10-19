@@ -1,0 +1,15 @@
+{% if bookmarks %}
+<ul class="widget-task-list">
+  {% for lnk in bookmarks %}
+  <li class="widget-task-item">
+    <a href="{{ lnk.url }}" target="_blank" rel="noopener" class="widget-task-title">{{ lnk.title }}</a>
+    {% if lnk.category %}
+    <span class="hint" style="font-size:0.7rem;white-space:nowrap">{{ lnk.category }}</span>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.no_bookmarks") }}</p>
+{% endif %}
+<a href="/links" class="widget-footer-link">{{ t("widget.footer.all_links") }}</a>

@@ -1,0 +1,62 @@
+{% if sprint %}
+<div class="sprint-card-header" style="margin-bottom:0.5rem">
+  <div>
+    <span class="sprint-name">{{ sprint.name }}</span>
+    <span class="sprint-dates">{{ sprint.start.strftime('%d.%m.') }} – {{ sprint.end.strftime('%d.%m.%Y') }}</span>
+  </div>
+  <span class="sprint-work-days">{{ sprint.total_work_days }} d</span>
+</div>
+
+<div class="sprint-breakdown">
+  {% if sprint.holiday_days %}
+  <div class="sprint-row sprint-row-holiday">
+    <span><i data-lucide="star" class="icon-xs"></i> {{ t("cal.holidays") }}</span>
+    <span>{{ sprint.holiday_days }} d</span>
+  </div>
+  {% endif %}
+  {% if sprint.vac_approved_days %}
+  <div class="sprint-row sprint-row-vacation">
+    <span><i data-lucide="palmtree" class="icon-xs"></i> {{ t("cal.vacation_approved") }}</span>
+    <span>{{ sprint.vac_approved_days }} d</span>
+  </div>
+  {% endif %}
+  {% if sprint.vac_planned_days %}
+  <div class="sprint-row sprint-row-planned">
+    <span><i data-lucide="clock" class="icon-xs"></i> {{ t("cal.vacation_planned_req") }}</span>
+    <span>{{ sprint.vac_planned_days }} d</span>
+  </div>
+  {% endif %}
+  {% if sprint.appt_blocked_days %}
+  <div class="sprint-row sprint-row-appt">
+    <span><i data-lucide="calendar-x" class="icon-xs"></i> {{ t("cal.appointments") }}</span>
+    <span>{{ sprint.appt_blocked_days }} d</span>
+  </div>
+  {% endif %}
+</div>
+
+<div class="sprint-capacity-bar-wrap">
+  {% set pct_avail = ([sprint.remaining_days, 0] | max / sprint.total_work_days * 100) | int if sprint.total_work_days else 0 %}
+  {% set pct_today = (sprint.days_remaining_from_today / sprint.total_work_days * 100) | int if sprint.total_work_days else 0 %}
+
+  <div class="sprint-bar-row">
+    <span class="sprint-bar-label">{{ t("cal.available") }}</span>
+    <div class="sprint-capacity-bar">
+      <div class="sprint-bar-avail" style="width:{{ [pct_avail, 100] | min }}%"></div>
+    </div>
+    <span class="sprint-bar-value {% if sprint.capacity_pct >= 60 %}sprint-cap-good{% elif sprint.capacity_pct >= 30 %}sprint-cap-warn{% else %}sprint-cap-low{% endif %}">
+      {{ sprint.remaining_days }} d <span class="sprint-bar-pct">{{ pct_avail }}%</span>
+    </span>
+  </div>
+
+  <div class="sprint-bar-row">
+    <span class="sprint-bar-label">{{ t("cal.remaining") }}</span>
+    <div class="sprint-capacity-bar">
+      <div class="sprint-bar-today" style="width:{{ [pct_today, 100] | min }}%"></div>
+    </div>
+    <span class="sprint-bar-value sprint-cap-today">{{ sprint.days_remaining_from_today }} d <span class="sprint-bar-pct">{{ pct_today }}%</span></span>
+  </div>
+</div>
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.no_sprint") }}</p>
+{% endif %}
+<a href="/calendar/capacity" class="widget-footer-link">{{ t("widget.footer.open_calendar") }}</a>

@@ -1,0 +1,15 @@
+{% if meme_entry %}
+<div style="position:relative">
+  <img src="/memes/{{ meme_entry.id }}/raw" alt="Meme of the Day"
+       style="width:100%;border-radius:4px;display:block;max-height:220px;object-fit:contain;cursor:zoom-in"
+       onclick="openLightbox(this.src)">
+  <button onclick="copyImage(this, '/memes/{{ meme_entry.id }}/raw')"
+          class="btn btn-secondary btn-sm"
+          style="position:absolute;top:0.4rem;right:0.4rem;padding:0.2rem 0.5rem;font-size:0.75rem;opacity:0.85">
+    <i data-lucide="copy" class="icon-xs"></i>
+  </button>
+</div>
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.no_memes") }}</p>
+{% endif %}
+<a href="/memes" class="widget-footer-link">{{ t("widget.footer.open_memes") }}</a>

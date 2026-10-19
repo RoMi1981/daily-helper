@@ -1,0 +1,14 @@
+{% if calendar_events %}
+<ul class="widget-calendar-list">
+  {% for ev in calendar_events %}
+  <li class="widget-calendar-item widget-cal-{{ ev.type }}">
+    <span class="widget-cal-date">{{ ev.date[5:] }}</span>
+    <span class="widget-cal-dot widget-cal-dot-{{ ev.type }}"></span>
+    <span class="widget-cal-title">{{ ev.title }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.nothing_upcoming") }}</p>
+{% endif %}
+<a href="/calendar" class="widget-footer-link">{{ t("widget.footer.open_calendar") }}</a>

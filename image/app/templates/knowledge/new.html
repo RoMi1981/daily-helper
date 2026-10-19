@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}New Entry – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="form-section">
+  <h1>{{ t("label.new_entry") }}</h1>
+  {% if error %}<div class="alert alert-error">{{ error }}</div>{% endif %}
+  <form action="/knowledge/entries" method="post" class="entry-form">
+
+    <div class="form-group" {% if writable_repos | length <= 1 %}style="display:none"{% endif %}>
+      <label for="repo_id">{{ t("field.repo") }}</label>
+      {% if writable_repos %}
+      <select name="repo_id" id="repo_id" class="form-control" required
+              onchange="filterCategories(this.value)">
+        {% for repo in writable_repos %}
+        <option value="{{ repo.id }}" {% if repo.id == primary_repo_id %}selected{% endif %}>{{ repo.name }}</option>
+        {% endfor %}
+      </select>
+      {% else %}
+      <div class="alert alert-error">{{ t("msg.no_writable_repo") | safe }}</div>
+      {% endif %}
+    </div>
+    {% if writable_repos | length <= 1 and writable_repos %}
+    <input type="hidden" name="repo_id" value="{{ writable_repos[0].id }}">
+    {% endif %}
+
+    <div class="form-group">
+      <label for="category">{{ t("field.category") }}</label>
+      <select name="category" id="category" class="form-control"
+              onchange="document.getElementById('new-cat-section').style.display = this.value === '__new__' ? 'block' : 'none'">
+        <option value="">{{ t("label.select_category") }}</option>
+        {% for cat in categories %}
+        <option value="{{ cat.category }}" data-repo="{{ cat.repo_id }}">📁 {{ cat.category }}</option>
+        {% endfor %}
+        <option value="__new__" data-repo="__all__">{{ t("label.create_new_category") }}</option>
+      </select>
+    </div>
+
+    <div class="form-group" id="new-cat-section" style="display:none">
+      <label for="new_category">{{ t("field.new_category") }}</label>
+      <input type="text" name="new_category" id="new_category"
+             class="form-control" placeholder="{{ t('ph.category_example') }}"
+             pattern="[^/]+" title="{{ t('knowledge.hint.no_slash_title') }}">
+      <p class="field-hint">{{ t("knowledge.hint.no_slashes") }}<code>DevOps</code>, <code>Linux</code>, <code>Networking</code></p>
+    </div>
+
+    <div class="form-group">
+      <label for="title">{{ t("field.title_required") }}</label>
+      <input type="text" name="title" id="title" required
+             class="form-control" placeholder="{{ t('ph.entry_title') }}">
+      <p class="field-hint">{{ t("knowledge.hint.title_filename") }}</p>
+    </div>
+
+    <div class="form-group">
+      <label for="content">{{ t("field.content") }} <span class="hint">{{ t("md.markdown_hint") }}</span></label>
+      <select id="template-select" class="form-control template-select" onchange="loadTemplate(this.value)">
+        <option value="">{{ t("label.start_from_template") }}</option>
+        <optgroup label="{{ t('label.template_builtin') }}">
+          <option value="__howto">{{ t("label.template_howto") }}</option>
+          <option value="__troubleshooting">{{ t("label.template_troubleshooting") }}</option>
+          <option value="__cheatsheet">{{ t("label.template_cheatsheet") }}</option>
+          <option value="__meeting">{{ t("label.template_meeting") }}</option>
+        </optgroup>
+        {% if entry_templates %}
+        <optgroup label="{{ t('label.template_custom') }}">
+          {% for tpl in entry_templates %}
+          <option value="custom:{{ tpl.id }}">{{ tpl.name }}</option>
+          {% endfor %}
+        </optgroup>
+        {% endif %}
+      </select>
+      <div class="editor-container">
+        <div class="editor-tabs">
+          <button type="button" class="tab-btn active" onclick="switchTab('edit', this)">{{ t("tab.edit") }}</button>
+          <button type="button" class="tab-btn" onclick="switchTab('preview', this)">{{ t("tab.preview") }}</button>
+        </div>
+
+        <div class="toolbar">
+          <div class="toolbar-group">
+            <button type="button" class="tb-btn" onclick="insert('# ', '', this)" title="{{ t('md.heading1') }}">H1</button>
+            <button type="button" class="tb-btn" onclick="insert('## ', '', this)" title="{{ t('md.heading2') }}">H2</button>
+            <button type="button" class="tb-btn" onclick="insert('### ', '', this)" title="{{ t('md.heading3') }}">H3</button>
+          </div>
+          <div class="toolbar-sep"></div>
+          <div class="toolbar-group">
+            <button type="button" class="tb-btn tb-bold" onclick="wrap('**', '**', this)" title="{{ t('md.bold') }}">B</button>
+            <button type="button" class="tb-btn tb-italic" onclick="wrap('*', '*', this)" title="{{ t('md.italic') }}">I</button>
+            <button type="button" class="tb-btn tb-strike" onclick="wrap('~~', '~~', this)" title="{{ t('md.strikethrough') }}">S</button>
+          </div>
+          <div class="toolbar-sep"></div>
+          <div class="toolbar-group">
+            <button type="button" class="tb-btn" onclick="wrap('`', '`', this)" title="{{ t('md.inline_code') }}">`c`</button>
+            <button type="button" class="tb-btn" onclick="insertCodeBlock(this)" title="{{ t('md.code_block') }}">{ }</button>
+          </div>
+          <div class="toolbar-sep"></div>
+          <div class="toolbar-group">
+            <button type="button" class="tb-btn" onclick="insertLine('- ', this)" title="{{ t('md.list') }}">• —</button>
+            <button type="button" class="tb-btn" onclick="insertLine('1. ', this)" title="{{ t('md.numbered_list') }}">1. —</button>
+            <button type="button" class="tb-btn" onclick="insertLine('- [ ] ', this)" title="{{ t('md.checkbox_list') }}">☐ —</button>
+          </div>
+          <div class="toolbar-sep"></div>
+          <div class="toolbar-group">
+            <button type="button" class="tb-btn" onclick="insertLine('> ', this)" title="{{ t('md.blockquote') }}">"</button>
+            <button type="button" class="tb-btn" onclick="insertBlock('\n---\n', this)" title="{{ t('md.hrule') }}">—</button>
+            <button type="button" class="tb-btn" onclick="insertTable(this)" title="{{ t('md.table') }}">⊞</button>
+            <button type="button" class="tb-btn" onclick="insertLink(this)" title="{{ t('md.link') }}">🔗</button>
+          </div>
+        </div>
+
+        <textarea name="content" id="content" required class="form-control editor"
+                  placeholder="{{ t('ph.markdown_content') }}"
+                  oninput="schedulePreview(this)"></textarea>
+        <div class="preview-pane" style="display:none"></div>
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <a href="/knowledge" class="btn btn-secondary">{{ t("action.cancel") }}</a>
+      <button type="submit" class="btn btn-primary">{{ t("action.save_push") }}</button>
+    </div>
+  </form>
+</div>
+
+<script src="/static/editor.js"></script>
+<script>
+// Filter category dropdown to only show categories of the selected repo
+function filterCategories(repoId) {
+  const sel = document.getElementById('category');
+  Array.from(sel.options).forEach(opt => {
+    const r = opt.dataset.repo;
+    opt.hidden = r && r !== '__all__' && r !== repoId;
+  });
+  // Reset to first visible option
+  const first = Array.from(sel.options).find(o => !o.hidden);
+  if (first) sel.value = first.value;
+  document.getElementById('new-cat-section').style.display = 'none';
+}
+
+// Initialise on page load
+document.addEventListener('DOMContentLoaded', function() {
+  const repoSel = document.getElementById('repo_id');
+  if (repoSel) filterCategories(repoSel.value);
+});
+
+// Load custom server-side templates via API
+const _customTemplates = {};
+{% for tpl in entry_templates %}
+_customTemplates['{{ tpl.id }}'] = {{ tpl.content | tojson }};
+{% endfor %}
+
+const _origLoadTemplate = loadTemplate;
+window.loadTemplate = function(name) {
+  if (name.startsWith('custom:')) {
+    const id = name.slice(7);
+    const content = _customTemplates[id];
+    if (content === undefined) return;
+    const ta = getEditor();
+    if (ta.value.trim() && !confirm('{{ t("confirm.replace_template") }}')) {
+      document.getElementById('template-select').value = '';
+      return;
+    }
+    ta.value = content;
+    document.getElementById('template-select').value = '';
+    schedulePreview();
+    ta.focus();
+  } else {
+    // Remap to built-in keys (strip __ prefix)
+    _origLoadTemplate(name.startsWith('__') ? name.slice(2) : name);
+  }
+};
+</script>
+{% endblock %}

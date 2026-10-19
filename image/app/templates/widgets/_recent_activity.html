@@ -1,0 +1,14 @@
+{% if recent_activity %}
+<ul class="widget-activity-list">
+  {% for commit in recent_activity %}
+  <li class="widget-activity-item">
+    <span class="hint" style="font-size:0.75rem;white-space:nowrap">{{ commit.ts | strftime('%m-%d') }}</span>
+    <span class="hint" style="font-size:0.75rem;color:var(--text-dim);white-space:nowrap">{{ (commit.author or "")[:10] }}</span>
+    <span class="widget-activity-msg">{{ (commit.subject or "")[:55] }}</span>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.no_recent_activity") }}</p>
+{% endif %}
+<a href="/history" class="widget-footer-link">{{ t("widget.footer.full_history") }}</a>

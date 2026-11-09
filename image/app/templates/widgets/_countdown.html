@@ -1,0 +1,16 @@
+{% if countdown and countdown.configured %}
+<div style="text-align:center;padding:0.25rem 0">
+  {% if countdown.days > 0 %}
+  <div style="font-size:2.5rem;font-weight:700;line-height:1;color:var(--accent)">{{ countdown.days }}</div>
+  <div class="hint" style="font-size:0.8rem;margin-top:0.2rem">{% if countdown.days == 1 %}{{ t("widget.countdown.day") }}{% else %}{{ t("widget.countdown.days") }}{% endif %}</div>
+  {% elif countdown.days == 0 %}
+  <div style="font-size:1.5rem;font-weight:700;color:var(--accent)">{{ t("widget.countdown.today") }}</div>
+  {% else %}
+  <div style="font-size:2rem;font-weight:700;line-height:1;color:var(--text-muted)">+{{ countdown.days | abs }}</div>
+  <div class="hint" style="font-size:0.8rem;margin-top:0.2rem">{% if countdown.days == -1 %}{{ t("widget.countdown.day_ago") }}{% else %}{{ t("widget.countdown.days_ago") }}{% endif %}</div>
+  {% endif %}
+  <div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.5rem">{{ countdown.target_date }}</div>
+</div>
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.no_countdown_date") }}</p>
+{% endif %}

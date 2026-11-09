@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Edit Appointment – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i data-lucide="pencil" class="icon-sm"></i> {{ t("label.edit_appointment") }}</h1>
+</div>
+
+<form method="post" action="/appointments/{{ entry.id }}/edit" class="entry-form">
+  <div class="form-group">
+    <label>{{ t("field.title_required") }}</label>
+    <input type="text" name="title" class="form-control" value="{{ entry.title }}" required>
+  </div>
+  <div class="form-row">
+    <div class="form-group">
+      <label>{{ t("field.from_required") }}</label>
+      <input type="date" name="start_date" class="form-control" value="{{ entry.start_date }}" required style="max-width:14rem">
+    </div>
+    <div class="form-group">
+      <label>{{ t("field.to_required") }}</label>
+      <input type="date" name="end_date" class="form-control" value="{{ entry.end_date }}" required style="max-width:14rem">
+    </div>
+  </div>
+  <p class="field-hint" style="margin-top:-0.5rem">{{ t("field.hint.appt_dates") }}</p>
+  <div class="form-group">
+    <label>{{ t("field.type") }}</label>
+    <select name="type" class="form-control" style="max-width:18rem">
+      {% for val, label in appt_types %}
+      <option value="{{ val }}" {% if entry.type == val %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+    <p class="field-hint">{{ t("field.hint.appt_type") }}</p>
+  </div>
+  <div class="form-group">
+    <label>{{ t("field.recurring") }}</label>
+    <select name="recurring" class="form-control" style="max-width:18rem">
+      <option value="none" {% if entry.recurring in ('none', '', none) %}selected{% endif %}>{{ t("recurring.none") }}</option>
+      <option value="weekly" {% if entry.recurring == 'weekly' %}selected{% endif %}>{{ t("recurring.weekly") }}</option>
+      <option value="monthly" {% if entry.recurring == 'monthly' %}selected{% endif %}>{{ t("recurring.monthly") }}</option>
+      <option value="yearly" {% if entry.recurring == 'yearly' %}selected{% endif %}>{{ t("recurring.yearly") }}</option>
+    </select>
+    <p class="field-hint">{{ t("field.hint.appt_recurring") }}</p>
+  </div>
+  <div class="form-group">
+    <label>{{ t("field.note") }}</label>
+    <input type="text" name="note" class="form-control" value="{{ entry.note }}">
+    <p class="field-hint">{{ t("field.hint.appt_note") }}</p>
+  </div>
+  <div class="form-actions">
+    <button type="submit" class="btn btn-primary">{{ t("action.save") }}</button>
+    <a href="/appointments" class="btn btn-secondary">{{ t("action.cancel") }}</a>
+  </div>
+</form>
+{% endblock %}

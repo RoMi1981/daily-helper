@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div class="page-header">
+  <h1><i data-lucide="package" class="icon-sm"></i> {{ product }}</h1>
+  <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+    <a href="/eol/timeline/{{ product }}" class="btn btn-secondary btn-sm">
+      <i data-lucide="bar-chart-horizontal" class="icon-xs"></i>{{ t("eol.timeline") }}</a>
+    <a href="/eol/add" class="btn btn-secondary btn-sm">{{ t("eol.back_search") }}</a>
+  </div>
+</div>
+
+<div style="overflow-x:auto">
+<table class="data-table">
+  <thead>
+    <tr>
+      <th>{{ t("eol.cycle") }}</th>
+      <th>{{ t("eol.latest") }}</th>
+      <th>{{ t("eol.released") }}</th>
+      <th>EOL</th>
+      <th>{{ t("eol.extended_support") }}</th>
+      <th>{{ t("field.status") }}</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for c in cycles %}
+    <tr class="{% if c.status == 'eol' %}row-muted{% endif %}">
+      <td>
+        <strong>{{ c.cycle }}</strong>
+        {% if c.lts %}<span class="badge badge-accent">LTS</span>{% endif %}
+      </td>
+      <td>{{ c.latest or '—' }}</td>
+      <td class="hint">{{ c.releaseDate or '—' }}</td>
+      <td class="hint">{{ c.eol_str }}</td>
+      <td class="hint">{{ c.ext_str or '—' }}</td>
+      <td>
+        <span class="eol-status-badge eol-badge-{{ c.status }}">
+          {% if c.status == 'active' %}{{ t("eol.status.active") }}
+          {% elif c.status == 'soon' %}{{ t("eol.status.soon") }}
+          {% elif c.status == 'eol' %}{{ t("eol.status.eol") }}
+          {% else %}{{ t("eol.status.unknown") }}{% endif %}
+        </span>
+      </td>
+      <td>
+        {% if c.already_tracked %}
+        <span class="hint">{{ t("eol.tracked") }}</span>
+        {% else %}
+        <form method="post" action="/eol/add" style="display:inline">
+          <input type="hidden" name="product" value="{{ product }}">
+          <input type="hidden" name="cycle" value="{{ c.cycle }}">
+          <input type="hidden" name="label" value="{{ product }} {{ c.cycle }}">
+          <button type="submit" class="btn btn-primary btn-xs">
+            <i data-lucide="plus" class="icon-xs"></i>{{ t("eol.track") }}</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% endblock %}

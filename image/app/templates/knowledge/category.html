@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}{{ category }} – Daily Helper{% endblock %}
+
+{% block content %}
+<div class="category-view">
+  <h1>📁 {{ category }}</h1>
+  <p>{{ t('label.entry_count', n=total) }}{% if total_pages > 1 %} &mdash; {{ t('label.page_of', page=page, total=total_pages) }}{% endif %}</p>
+
+  {% if entries %}
+  <div class="entry-grid">
+    {% for entry in entries %}
+    <a href="/knowledge/entries/{{ entry.repo_id }}/{{ entry.category }}/{{ entry.slug }}" class="entry-card{% if entry.pinned %} entry-card-pinned{% endif %}">
+      {% if entry.pinned %}<div class="entry-pin-badge">★</div>{% endif %}
+      <div class="entry-title">{{ entry.title }}</div>
+      {% if entry.excerpt %}
+      <div class="entry-excerpt">{{ entry.excerpt }}</div>
+      {% endif %}
+      {% if entry.created %}
+      <div class="entry-date">{{ entry.created }}</div>
+      {% endif %}
+    </a>
+    {% endfor %}
+  </div>
+
+  {% if total_pages > 1 %}
+  <div class="pagination">
+    {% if page > 1 %}
+    <a href="/knowledge/category/{{ category }}?page={{ page - 1 }}" class="btn btn-secondary btn-sm">{{ t("action.previous") }}</a>
+    {% else %}
+    <span class="btn btn-secondary btn-sm pagination-disabled">{{ t("action.previous") }}</span>
+    {% endif %}
+    <span class="pagination-info">{{ page }} / {{ total_pages }}</span>
+    {% if page < total_pages %}
+    <a href="/knowledge/category/{{ category }}?page={{ page + 1 }}" class="btn btn-secondary btn-sm">{{ t("action.next_page") }}</a>
+    {% else %}
+    <span class="btn btn-secondary btn-sm pagination-disabled">{{ t("action.next_page") }}</span>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <p class="empty-state">{{ t("empty.knowledge_category") }}</p>
+  {% endif %}
+</div>
+{% endblock %}

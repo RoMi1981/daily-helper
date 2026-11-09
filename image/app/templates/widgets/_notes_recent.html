@@ -1,0 +1,15 @@
+{% if notes_recent %}
+<ul class="widget-task-list">
+  {% for note in notes_recent %}
+  <li class="widget-task-item">
+    <a href="/notes/{{ note.id }}" class="widget-task-title">{{ note.subject }}</a>
+    {% if note.modified or note.created %}
+    <span class="hint" style="font-size:0.75rem;white-space:nowrap">{{ (note.modified or note.created)[:10] }}</span>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<p class="widget-empty">{{ t("widget.empty.no_notes") }}</p>
+{% endif %}
+<a href="/notes" class="widget-footer-link">{{ t("widget.footer.all_notes") }}</a>
